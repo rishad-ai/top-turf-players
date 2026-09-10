@@ -14,6 +14,15 @@ export type DashboardPlayerSummary = PlayerStats &
     playerType: "regular" | "irregular";
   };
 
+export type YearlyExtreme = {
+  matchId: number;
+  matchDate: string;
+  teamAScore: number;
+  teamBScore: number;
+  winningTeam: "A" | "B";
+  margin: number;
+};
+
 export type DashboardStats = {
   todayDate: string;
   hasTodayMatch: boolean;
@@ -25,10 +34,34 @@ export type DashboardStats = {
   coldStreakPlayers: DashboardPlayerSummary[];
   topScorer: DashboardPlayerSummary | null;
   topPlayersByWins: DashboardPlayerSummary[];
+  biggestResultThisYear: YearlyExtreme | null;
 };
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/** The single largest-margin (most lopsided) match played in the given year, if any. */
+export async function calculateBiggestResultOfYear(year: number): Promise<YearlyExtreme | null> {
+  const allMatches = await db.query.matches.findMany();
+  const yearMatches = allMatches.filter((m) => m.matchDate.startsWith(`${year}-`));
+
+  let best: YearlyExtreme | null = null;
+  for (const m of yearMatches) {
+    const margin = Math.abs(m.teamAScore - m.teamBScore);
+    if (margin === 0) continue; // draws have no "winner" for this stat
+    if (!best || margin > best.margin) {
+      best = {
+        matchId: m.id,
+        matchDate: m.matchDate,
+        teamAScore: m.teamAScore,
+        teamBScore: m.teamBScore,
+        winningTeam: m.teamAScore > m.teamBScore ? "A" : "B",
+        margin,
+      };
+    }
+  }
+  return best;
 }
 
 export async function calculateDashboardStats(): Promise<DashboardStats> {
@@ -96,6 +129,9 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
 
   const topPlayersByWins = [...summaries].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
+  const currentYear = new Date(today).getFullYear();
+  const biggestResultThisYear = await calculateBiggestResultOfYear(currentYear);
+
   return {
     todayDate: today,
     hasTodayMatch: Boolean(todayMatchRow),
@@ -107,5 +143,6 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     coldStreakPlayers,
     topScorer,
     topPlayersByWins,
+    biggestResultThisYear,
   };
 }
