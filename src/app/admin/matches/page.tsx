@@ -4,6 +4,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { DeleteMatchButton } from "./DeleteMatchButton";
 import { Plus } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminMatchesPage() {
   const all = await getAllMatchesSummary();
 

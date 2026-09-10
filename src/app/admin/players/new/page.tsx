@@ -1,5 +1,7 @@
 import { PlayerForm } from "@/components/players/PlayerForm";
 
+export const dynamic = "force-dynamic";
+
 export default function NewPlayerPage() {
   return (
     <div className="mx-auto max-w-md space-y-4">

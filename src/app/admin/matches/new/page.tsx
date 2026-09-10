@@ -1,6 +1,8 @@
 import { getActivePlayersForPicker } from "@/lib/matchService";
 import { MatchForm } from "@/components/matches/MatchForm";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewMatchPage() {
   const players = await getActivePlayersForPicker();
 
