@@ -1,0 +1,40 @@
+@import "tailwindcss";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+
+/*
+  TOP Turf Players — design tokens (light mode, football-pitch identity)
+  - pitch green = wins / primary actions
+  - amber = streak highlights ("hot")
+  - red = losses / cold streaks
+  - navy/charcoal = text, never pure black
+  Namespaced under @theme so Tailwind generates utilities:
+  bg-bg, bg-surface, text-ink, text-ink-muted, bg-pitch, text-pitch,
+  bg-pitch-tint, bg-amber, bg-amber-tint, bg-red, bg-red-tint, border-line
+*/
+@theme {
+  --color-bg: #FAFAF7;
+  --color-surface: #FFFFFF;
+  --color-ink: #101826;
+  --color-ink-muted: #5B6474;
+  --color-pitch: #1E7A46;
+  --color-pitch-dark: #145C34;
+  --color-pitch-tint: #E7F4EC;
+  --color-amber: #E8A33D;
+  --color-amber-tint: #FBF0DD;
+  --color-red: #D14343;
+  --color-red-tint: #FBEAEA;
+  --color-line: #E7E5DF;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+}
