@@ -74,6 +74,9 @@ export const matchPlayers = pgTable(
       .references(() => players.id, { onDelete: "cascade" }),
     team: text("team", { enum: ["A", "B"] }).notNull(),
     role: text("role", { enum: ["starter", "substitute"] }).notNull(),
+    // Formation position for starters (goalkeeper/defender/attacker in a 1-3-3
+    // lineup). Substitutes don't have a formation slot, so this is null for them.
+    position: text("position", { enum: ["GK", "DEF", "ATT"] }),
     played: boolean("played").notNull().default(true),
     result: text("result", { enum: ["win", "loss", "draw"] }).notNull(),
   },

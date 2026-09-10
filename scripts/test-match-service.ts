@@ -16,6 +16,18 @@ function assert(cond: boolean, msg: string) {
   console.log(`PASS: ${msg}`);
 }
 
+/** Assigns a valid 1-3-3 formation (GK, 3xDEF, 3xATT) by index for a 7-player starter array. */
+function withPositions(ids: number[], team: "A" | "B") {
+  const positions: ("GK" | "DEF" | "ATT")[] = ["GK", "DEF", "DEF", "DEF", "ATT", "ATT", "ATT"];
+  return ids.map((id, i) => ({
+    playerId: id,
+    team,
+    role: "starter" as const,
+    position: positions[i] ?? ("ATT" as const),
+    played: true,
+  }));
+}
+
 async function resetTables() {
   await pool.query("TRUNCATE TABLE goals, match_players, matches, players RESTART IDENTITY CASCADE;");
 }
@@ -42,18 +54,8 @@ async function main() {
       teamAScore: 3,
       teamBScore: 1,
       players: [
-        ...teamAStarters.map((id) => ({
-          playerId: id,
-          team: "A" as const,
-          role: "starter" as const,
-          played: true,
-        })),
-        ...teamBStarters.map((id) => ({
-          playerId: id,
-          team: "B" as const,
-          role: "starter" as const,
-          played: true,
-        })),
+        ...withPositions(teamAStarters, "A"),
+        ...withPositions(teamBStarters, "B"),
       ],
       goals: [
         { playerId: teamAStarters[0], team: "A", minute: 10 },
@@ -102,12 +104,7 @@ async function main() {
             role: "starter" as const,
             played: true,
           })),
-          ...teamBStarters.map((id) => ({
-            playerId: id,
-            team: "B" as const,
-            role: "starter" as const,
-            played: true,
-          })),
+          ...withPositions(teamBStarters, "B"),
         ],
         goals: [],
         teamAScore: 0,
@@ -126,18 +123,8 @@ async function main() {
       buildBasicInput({
         matchDate: "2026-01-03",
         players: [
-          ...teamAStarters.map((id) => ({
-            playerId: id,
-            team: "A" as const,
-            role: "starter" as const,
-            played: true,
-          })),
-          ...teamBStarters.map((id) => ({
-            playerId: id,
-            team: "B" as const,
-            role: "starter" as const,
-            played: true,
-          })),
+          ...withPositions(teamAStarters, "A"),
+          ...withPositions(teamBStarters, "B"),
           { playerId: sub1, team: "A" as const, role: "substitute" as const, played: true },
           { playerId: sub2, team: "A" as const, role: "substitute" as const, played: true },
         ],
@@ -158,12 +145,7 @@ async function main() {
       buildBasicInput({
         matchDate: "2026-01-04",
         players: [
-          ...teamAStarters.map((id) => ({
-            playerId: id,
-            team: "A" as const,
-            role: "starter" as const,
-            played: true,
-          })),
+          ...withPositions(teamAStarters, "A"),
           ...teamBStarters.slice(0, 6).map((id) => ({
             playerId: id,
             team: "B" as const,
@@ -231,18 +213,8 @@ async function main() {
       buildBasicInput({
         matchDate: "2026-01-08",
         players: [
-          ...teamAStarters.map((id) => ({
-            playerId: id,
-            team: "A" as const,
-            role: "starter" as const,
-            played: true,
-          })),
-          ...teamBStarters.map((id) => ({
-            playerId: id,
-            team: "B" as const,
-            role: "starter" as const,
-            played: true,
-          })),
+          ...withPositions(teamAStarters, "A"),
+          ...withPositions(teamBStarters, "B"),
           { playerId: sub1, team: "A" as const, role: "substitute" as const, played: false },
         ],
         goals: [

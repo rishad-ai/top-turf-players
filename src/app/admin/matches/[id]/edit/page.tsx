@@ -19,12 +19,17 @@ export default async function EditMatchPage({
   // now-inactive/edited-out player still renders correctly for editing.
   const allPlayers = await getAllPlayers();
 
-  const teamAStarters = detail.matchPlayers
-    .filter((mp) => mp.team === "A" && mp.role === "starter")
-    .map((mp) => mp.playerId);
-  const teamBStarters = detail.matchPlayers
-    .filter((mp) => mp.team === "B" && mp.role === "starter")
-    .map((mp) => mp.playerId);
+  function buildFormation(team: "A" | "B") {
+    const starters = detail!.matchPlayers.filter((mp) => mp.team === team && mp.role === "starter");
+    return {
+      gk: starters.find((mp) => mp.position === "GK")?.playerId ?? null,
+      def: starters.filter((mp) => mp.position === "DEF").map((mp) => mp.playerId),
+      att: starters.filter((mp) => mp.position === "ATT").map((mp) => mp.playerId),
+    };
+  }
+
+  const teamAFormation = buildFormation("A");
+  const teamBFormation = buildFormation("B");
   const teamASubs = detail.matchPlayers
     .filter((mp) => mp.team === "A" && mp.role === "substitute")
     .map((mp) => ({ playerId: mp.playerId, played: mp.played }));
@@ -44,8 +49,8 @@ export default async function EditMatchPage({
     matchDate: detail.match.matchDate,
     teamAScore: detail.match.teamAScore,
     teamBScore: detail.match.teamBScore,
-    teamAStarters,
-    teamBStarters,
+    teamAFormation,
+    teamBFormation,
     teamASubs,
     teamBSubs,
     goalsA,

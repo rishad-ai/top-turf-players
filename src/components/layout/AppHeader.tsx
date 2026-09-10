@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const LINKS = [
   { href: "/", label: "Home" },
@@ -13,9 +14,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 md:px-6">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pitch font-display text-sm font-bold text-white">
-            TT
-          </span>
+          <Image src="/logo.png" alt="TOP Turf Players" width={36} height={36} className="rounded-full" priority />
           <span className="font-display text-lg font-semibold tracking-tight text-ink">
             TOP Turf Players
           </span>

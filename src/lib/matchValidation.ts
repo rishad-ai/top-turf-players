@@ -1,7 +1,10 @@
+export type Position = "GK" | "DEF" | "ATT";
+
 export type MatchPlayerInput = {
   playerId: number;
   team: "A" | "B";
   role: "starter" | "substitute";
+  position?: Position | null; // required for starters (1-3-3 formation), null for subs
   played: boolean; // for substitutes: whether they actually played
 };
 
@@ -22,6 +25,26 @@ export type MatchInput = {
 export type ValidationResult = { ok: true } | { ok: false; error: string };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function validateFormation(teamLabel: string, starters: MatchPlayerInput[]): string | null {
+  const gks = starters.filter((p) => p.position === "GK");
+  const defs = starters.filter((p) => p.position === "DEF");
+  const atts = starters.filter((p) => p.position === "ATT");
+
+  if (gks.length + defs.length + atts.length !== starters.length) {
+    return `${teamLabel}: every starter must have a position (Goalkeeper, Defender, or Attacker).`;
+  }
+  if (gks.length !== 1) {
+    return `${teamLabel} must have exactly 1 goalkeeper (has ${gks.length}).`;
+  }
+  if (defs.length !== 3) {
+    return `${teamLabel} must have exactly 3 defenders (has ${defs.length}).`;
+  }
+  if (atts.length !== 3) {
+    return `${teamLabel} must have exactly 3 attackers (has ${atts.length}).`;
+  }
+  return null;
+}
 
 export function validateMatchInput(input: MatchInput): ValidationResult {
   // --- Date ---
@@ -60,6 +83,12 @@ export function validateMatchInput(input: MatchInput): ValidationResult {
   if (teamBSubs.length > 2) {
     return { ok: false, error: "Team B cannot have more than 2 substitutes." };
   }
+
+  // --- Formation: exactly 1 GK, 3 DEF, 3 ATT per team (1-3-3) ---
+  const formationErrorA = validateFormation("Team A", teamAStarters);
+  if (formationErrorA) return { ok: false, error: formationErrorA };
+  const formationErrorB = validateFormation("Team B", teamBStarters);
+  if (formationErrorB) return { ok: false, error: formationErrorB };
 
   // --- No duplicate players anywhere in the match (also prevents a player on both teams) ---
   const allPlayerIds = input.players.map((p) => p.playerId);

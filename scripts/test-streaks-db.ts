@@ -18,6 +18,18 @@ function goalsFor(count: number, playerId: number, team: "A" | "B") {
   return Array.from({ length: count }, () => ({ playerId, team }));
 }
 
+/** Assigns a valid 1-3-3 formation (GK, 3xDEF, 3xATT) by index for a 7-player starter array. */
+function withPositions(ids: number[], team: "A" | "B") {
+  const positions: ("GK" | "DEF" | "ATT")[] = ["GK", "DEF", "DEF", "DEF", "ATT", "ATT", "ATT"];
+  return ids.map((id, i) => ({
+    playerId: id,
+    team,
+    role: "starter" as const,
+    position: positions[i] ?? ("ATT" as const),
+    played: true,
+  }));
+}
+
 async function resetMatches() {
   await pool.query("TRUNCATE TABLE goals, match_players, matches RESTART IDENTITY CASCADE;");
 }
@@ -49,8 +61,8 @@ async function main() {
       teamAScore,
       teamBScore,
       players: [
-        ...aPlayers.map((id) => ({ playerId: id, team: "A" as const, role: "starter" as const, played: true })),
-        ...bPlayers.map((id) => ({ playerId: id, team: "B" as const, role: "starter" as const, played: true })),
+        ...withPositions(aPlayers, "A"),
+        ...withPositions(bPlayers, "B"),
       ],
       goals: [
         ...goalsFor(teamAScore, aPlayers[0], "A"),

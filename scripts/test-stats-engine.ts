@@ -9,6 +9,18 @@ function assert(cond: boolean, msg: string) {
   console.log(`PASS: ${msg}`);
 }
 
+/** Assigns a valid 1-3-3 formation (GK, 3xDEF, 3xATT) by index for a 7-player starter array. */
+function withPositions(ids: number[], team: "A" | "B") {
+  const positions: ("GK" | "DEF" | "ATT")[] = ["GK", "DEF", "DEF", "DEF", "ATT", "ATT", "ATT"];
+  return ids.map((id, i) => ({
+    playerId: id,
+    team,
+    role: "starter" as const,
+    position: positions[i] ?? ("ATT" as const),
+    played: true,
+  }));
+}
+
 async function resetTables() {
   await pool.query("TRUNCATE TABLE goals, match_players, matches, players RESTART IDENTITY CASCADE;");
 }
@@ -32,8 +44,8 @@ async function main() {
       teamAScore,
       teamBScore,
       players: [
-        ...teamA.map((id) => ({ playerId: id, team: "A" as const, role: "starter" as const, played: true })),
-        ...teamB.map((id) => ({ playerId: id, team: "B" as const, role: "starter" as const, played: true })),
+        ...withPositions(teamA, "A"),
+        ...withPositions(teamB, "B"),
       ],
       goals: [],
       ...extra,
@@ -66,9 +78,8 @@ async function main() {
     teamAScore: 0,
     teamBScore: 3,
     players: [
-      ...teamA.slice(1).map((id) => ({ playerId: id, team: "A" as const, role: "starter" as const, played: true })),
-      { playerId: sub, team: "A" as const, role: "starter" as const, played: true },
-      ...teamB.map((id) => ({ playerId: id, team: "B" as const, role: "starter" as const, played: true })),
+      ...withPositions([...teamA.slice(1), sub], "A"),
+      ...withPositions(teamB, "B"),
     ],
     goals: [
       { playerId: teamB[0], team: "B" },

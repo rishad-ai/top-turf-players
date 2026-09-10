@@ -9,17 +9,26 @@ import {
   type MatchInput,
   type MatchPlayerInput,
   type GoalInput,
+  type Position,
 } from "@/lib/matchValidation";
 
 type SubEntry = { playerId: number; played: boolean };
+
+type FormationState = {
+  gk: number | null;
+  def: number[]; // exactly 3 when complete
+  att: number[]; // exactly 3 when complete
+};
+
+const emptyFormation = (): FormationState => ({ gk: null, def: [], att: [] });
 
 export type MatchFormInitial = {
   matchId?: number;
   matchDate: string;
   teamAScore: number;
   teamBScore: number;
-  teamAStarters: number[];
-  teamBStarters: number[];
+  teamAFormation: FormationState;
+  teamBFormation: FormationState;
   teamASubs: SubEntry[];
   teamBSubs: SubEntry[];
   goalsA: { playerId: number; minute: number | null }[];
@@ -28,6 +37,18 @@ export type MatchFormInitial = {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function formationStarters(f: FormationState, team: "A" | "B"): MatchPlayerInput[] {
+  const rows: MatchPlayerInput[] = [];
+  if (f.gk !== null) rows.push({ playerId: f.gk, team, role: "starter", position: "GK", played: true });
+  for (const id of f.def) rows.push({ playerId: id, team, role: "starter", position: "DEF", played: true });
+  for (const id of f.att) rows.push({ playerId: id, team, role: "starter", position: "ATT", played: true });
+  return rows;
+}
+
+function allFormationIds(f: FormationState): number[] {
+  return [...(f.gk !== null ? [f.gk] : []), ...f.def, ...f.att];
 }
 
 export function MatchForm({
@@ -41,8 +62,8 @@ export function MatchForm({
   const isEdit = Boolean(initial?.matchId);
 
   const [matchDate, setMatchDate] = useState(initial?.matchDate || todayISO());
-  const [teamAStarters, setTeamAStarters] = useState<number[]>(initial?.teamAStarters || []);
-  const [teamBStarters, setTeamBStarters] = useState<number[]>(initial?.teamBStarters || []);
+  const [teamA, setTeamA] = useState<FormationState>(initial?.teamAFormation || emptyFormation());
+  const [teamB, setTeamB] = useState<FormationState>(initial?.teamBFormation || emptyFormation());
   const [teamASubs, setTeamASubs] = useState<SubEntry[]>(initial?.teamASubs || []);
   const [teamBSubs, setTeamBSubs] = useState<SubEntry[]>(initial?.teamBSubs || []);
   const [teamAScore, setTeamAScore] = useState<number>(initial?.teamAScore ?? 0);
@@ -59,35 +80,43 @@ export function MatchForm({
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  function toggleTeamA(id: number) {
-    setTeamAStarters((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  function toggleGK(team: "A" | "B", id: number) {
+    const setter = team === "A" ? setTeamA : setTeamB;
+    setter((cur) => ({ ...cur, gk: cur.gk === id ? null : id }));
   }
-  function toggleTeamB(id: number) {
-    setTeamBStarters((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  function toggleDef(team: "A" | "B", id: number) {
+    const setter = team === "A" ? setTeamA : setTeamB;
+    setter((cur) => ({
+      ...cur,
+      def: cur.def.includes(id) ? cur.def.filter((x) => x !== id) : [...cur.def, id],
+    }));
+  }
+  function toggleAtt(team: "A" | "B", id: number) {
+    const setter = team === "A" ? setTeamA : setTeamB;
+    setter((cur) => ({
+      ...cur,
+      att: cur.att.includes(id) ? cur.att.filter((x) => x !== id) : [...cur.att, id],
+    }));
   }
   function toggleSubA(id: number) {
     setTeamASubs((cur) =>
-      cur.some((s) => s.playerId === id)
-        ? cur.filter((s) => s.playerId !== id)
-        : [...cur, { playerId: id, played: true }]
+      cur.some((s) => s.playerId === id) ? cur.filter((s) => s.playerId !== id) : [...cur, { playerId: id, played: true }]
     );
   }
   function toggleSubB(id: number) {
     setTeamBSubs((cur) =>
-      cur.some((s) => s.playerId === id)
-        ? cur.filter((s) => s.playerId !== id)
-        : [...cur, { playerId: id, played: true }]
+      cur.some((s) => s.playerId === id) ? cur.filter((s) => s.playerId !== id) : [...cur, { playerId: id, played: true }]
     );
   }
 
   const takenIds = useMemo(
     () => [
-      ...teamAStarters,
-      ...teamBStarters,
+      ...allFormationIds(teamA),
+      ...allFormationIds(teamB),
       ...teamASubs.map((s) => s.playerId),
       ...teamBSubs.map((s) => s.playerId),
     ],
-    [teamAStarters, teamBStarters, teamASubs, teamBSubs]
+    [teamA, teamB, teamASubs, teamBSubs]
   );
 
   const playersById = useMemo(() => {
@@ -96,40 +125,27 @@ export function MatchForm({
     return m;
   }, [allPlayers]);
 
-  const eligibleScorersA: EligibleScorer[] = useMemo(() => {
-    const list: EligibleScorer[] = teamAStarters.map((id) => ({
+  function eligibleScorers(f: FormationState, subs: SubEntry[], team: "A" | "B"): EligibleScorer[] {
+    const list: EligibleScorer[] = allFormationIds(f).map((id) => ({
       playerId: id,
       name: playersById.get(id)?.name || `#${id}`,
-      team: "A" as const,
+      team,
     }));
-    for (const s of teamASubs) {
-      if (s.played) {
-        list.push({ playerId: s.playerId, name: playersById.get(s.playerId)?.name || `#${s.playerId}`, team: "A" });
-      }
+    for (const s of subs) {
+      if (s.played) list.push({ playerId: s.playerId, name: playersById.get(s.playerId)?.name || `#${s.playerId}`, team });
     }
     return list;
-  }, [teamAStarters, teamASubs, playersById]);
+  }
 
-  const eligibleScorersB: EligibleScorer[] = useMemo(() => {
-    const list: EligibleScorer[] = teamBStarters.map((id) => ({
-      playerId: id,
-      name: playersById.get(id)?.name || `#${id}`,
-      team: "B" as const,
-    }));
-    for (const s of teamBSubs) {
-      if (s.played) {
-        list.push({ playerId: s.playerId, name: playersById.get(s.playerId)?.name || `#${s.playerId}`, team: "B" });
-      }
-    }
-    return list;
-  }, [teamBStarters, teamBSubs, playersById]);
+  const eligibleScorersA = useMemo(() => eligibleScorers(teamA, teamASubs, "A"), [teamA, teamASubs, playersById]);
+  const eligibleScorersB = useMemo(() => eligibleScorers(teamB, teamBSubs, "B"), [teamB, teamBSubs, playersById]);
 
   function buildMatchInput(): MatchInput {
     const matchPlayers: MatchPlayerInput[] = [
-      ...teamAStarters.map((id) => ({ playerId: id, team: "A" as const, role: "starter" as const, played: true })),
-      ...teamBStarters.map((id) => ({ playerId: id, team: "B" as const, role: "starter" as const, played: true })),
-      ...teamASubs.map((s) => ({ playerId: s.playerId, team: "A" as const, role: "substitute" as const, played: s.played })),
-      ...teamBSubs.map((s) => ({ playerId: s.playerId, team: "B" as const, role: "substitute" as const, played: s.played })),
+      ...formationStarters(teamA, "A"),
+      ...formationStarters(teamB, "B"),
+      ...teamASubs.map((s) => ({ playerId: s.playerId, team: "A" as const, role: "substitute" as const, position: null as Position | null, played: s.played })),
+      ...teamBSubs.map((s) => ({ playerId: s.playerId, team: "B" as const, role: "substitute" as const, position: null as Position | null, played: s.played })),
     ];
 
     const goals: GoalInput[] = [
@@ -140,17 +156,10 @@ export function MatchForm({
     return { matchDate, teamAScore, teamBScore, players: matchPlayers, goals };
   }
 
-  const liveValidation = useMemo(() => validateMatchInput(buildMatchInput()), [
-    matchDate,
-    teamAStarters,
-    teamBStarters,
-    teamASubs,
-    teamBSubs,
-    teamAScore,
-    teamBScore,
-    goalsA,
-    goalsB,
-  ]);
+  const liveValidation = useMemo(
+    () => validateMatchInput(buildMatchInput()),
+    [matchDate, teamA, teamB, teamASubs, teamBSubs, teamAScore, teamBScore, goalsA, goalsB]
+  );
 
   async function handleSave() {
     setError(null);
@@ -182,10 +191,40 @@ export function MatchForm({
     router.refresh();
   }
 
-  const availableForA = allPlayers;
-  const availableForB = allPlayers;
-  const availableForSubA = allPlayers;
-  const availableForSubB = allPlayers;
+  function FormationPickers({ team, formation }: { team: "A" | "B"; formation: FormationState }) {
+    const accent = team === "A" ? "border-pitch bg-pitch-tint" : "border-amber bg-amber-tint";
+    return (
+      <div className="space-y-4">
+        <PlayerPicker
+          label={`Team ${team} — Goalkeeper (exactly 1)`}
+          players={allPlayers}
+          selectedIds={formation.gk !== null ? [formation.gk] : []}
+          onToggle={(id) => toggleGK(team, id)}
+          disabledIds={takenIds.filter((id) => id !== formation.gk)}
+          maxCount={1}
+          accentClass={accent}
+        />
+        <PlayerPicker
+          label={`Team ${team} — Defenders (exactly 3)`}
+          players={allPlayers}
+          selectedIds={formation.def}
+          onToggle={(id) => toggleDef(team, id)}
+          disabledIds={takenIds.filter((id) => !formation.def.includes(id))}
+          maxCount={3}
+          accentClass={accent}
+        />
+        <PlayerPicker
+          label={`Team ${team} — Attackers (exactly 3)`}
+          players={allPlayers}
+          selectedIds={formation.att}
+          onToggle={(id) => toggleAtt(team, id)}
+          disabledIds={takenIds.filter((id) => !formation.att.includes(id))}
+          maxCount={3}
+          accentClass={accent}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -208,26 +247,13 @@ export function MatchForm({
         )}
       </section>
 
-      {/* 2 & 3. Team selection */}
-      <section className="space-y-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
-        <PlayerPicker
-          label="Team A — starters (exactly 7)"
-          players={availableForA}
-          selectedIds={teamAStarters}
-          onToggle={toggleTeamA}
-          disabledIds={takenIds.filter((id) => !teamAStarters.includes(id))}
-          maxCount={7}
-          accentClass="border-pitch bg-pitch-tint"
-        />
-        <PlayerPicker
-          label="Team B — starters (exactly 7)"
-          players={availableForB}
-          selectedIds={teamBStarters}
-          onToggle={toggleTeamB}
-          disabledIds={takenIds.filter((id) => !teamBStarters.includes(id))}
-          maxCount={7}
-          accentClass="border-amber bg-amber-tint"
-        />
+      {/* 2 & 3. Team formations - 1 GK, 3 DEF, 3 ATT each (1-3-3) */}
+      <section className="space-y-6 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
+        <p className="text-sm font-semibold text-ink">Formation: 1-3-3 (Goalkeeper – Defenders – Attackers)</p>
+        <FormationPickers team="A" formation={teamA} />
+        <div className="border-t border-line pt-4">
+          <FormationPickers team="B" formation={teamB} />
+        </div>
       </section>
 
       {/* 4. Substitutes */}
@@ -235,7 +261,7 @@ export function MatchForm({
         <div>
           <PlayerPicker
             label="Team A — substitutes (optional, up to 2)"
-            players={availableForSubA}
+            players={allPlayers}
             selectedIds={teamASubs.map((s) => s.playerId)}
             onToggle={toggleSubA}
             disabledIds={takenIds.filter((id) => !teamASubs.some((s) => s.playerId === id))}
@@ -265,7 +291,7 @@ export function MatchForm({
         <div>
           <PlayerPicker
             label="Team B — substitutes (optional, up to 2)"
-            players={availableForSubB}
+            players={allPlayers}
             selectedIds={teamBSubs.map((s) => s.playerId)}
             onToggle={toggleSubB}
             disabledIds={takenIds.filter((id) => !teamBSubs.some((s) => s.playerId === id))}
@@ -362,19 +388,23 @@ export function MatchForm({
             <p className="text-center font-display text-2xl font-bold text-ink">
               {teamAScore} : {teamBScore}
             </p>
-            <p className="mt-1 text-center text-sm text-ink-muted">{matchDate}</p>
+            <p className="mt-1 text-center text-sm text-ink-muted">{matchDate} · 1-3-3</p>
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="mb-1 font-medium text-ink">Team A ({teamAStarters.length} + {teamASubs.length} subs)</p>
+                <p className="mb-1 font-medium text-ink">Team A</p>
                 <ul className="space-y-0.5 text-ink-muted">
-                  {teamAStarters.map((id) => <li key={id}>{playersById.get(id)?.name}</li>)}
+                  {teamA.gk !== null && <li>GK: {playersById.get(teamA.gk)?.name}</li>}
+                  {teamA.def.map((id) => <li key={id}>DEF: {playersById.get(id)?.name}</li>)}
+                  {teamA.att.map((id) => <li key={id}>ATT: {playersById.get(id)?.name}</li>)}
                   {teamASubs.map((s) => <li key={s.playerId}>{playersById.get(s.playerId)?.name} (sub{!s.played && ", did not play"})</li>)}
                 </ul>
               </div>
               <div>
-                <p className="mb-1 font-medium text-ink">Team B ({teamBStarters.length} + {teamBSubs.length} subs)</p>
+                <p className="mb-1 font-medium text-ink">Team B</p>
                 <ul className="space-y-0.5 text-ink-muted">
-                  {teamBStarters.map((id) => <li key={id}>{playersById.get(id)?.name}</li>)}
+                  {teamB.gk !== null && <li>GK: {playersById.get(teamB.gk)?.name}</li>}
+                  {teamB.def.map((id) => <li key={id}>DEF: {playersById.get(id)?.name}</li>)}
+                  {teamB.att.map((id) => <li key={id}>ATT: {playersById.get(id)?.name}</li>)}
                   {teamBSubs.map((s) => <li key={s.playerId}>{playersById.get(s.playerId)?.name} (sub{!s.played && ", did not play"})</li>)}
                 </ul>
               </div>
