@@ -1,19 +1,11 @@
-# Update: faster rankings, this-month matches, formation order, team names
+# Update: mirror Team B lineup to face Team A
 
-Copy these files in, overwriting matches. No new dependencies, no migration.
+One file changed. No dependencies, no migration.
 
-## Changes
-1. RANKINGS speed + top 10: the rankings page was slow (per-player DB queries) - now
-   fetches everything in ~4 queries and computes in memory, same as the dashboard.
-   Also capped to the top 10 for a fast, focused view.
-2. MATCHES this month only: the matches page now shows only the current month by
-   default. Using any filter (date/player/winner/score) searches all history as before.
-3. LINEUP formation order: both teams now read goal-line-to-attack
-   (Goalkeeper -> Defenders -> Attackers), matching your sample.
-4. TEAM NAMES: "Team A" / "Team B" now appear on each lineup half (they were missing).
+Team A now reads goalkeeper (top) -> defenders -> attackers (bottom).
+Team B is mirrored: attackers (top) -> defenders -> goalkeeper (bottom),
+so the two teams face each other in the middle like a real pitch.
 
 ## Steps
-1. Copy files in, overwriting matches.
-2. git add . && git commit -m "Faster rankings, this-month matches, formation order, team names" && git push
-
-No npm install, no migration needed. Vercel auto-builds.
+1. Overwrite src/components/dashboard/DashboardMatchCard.tsx with the one in this zip.
+2. git add . && git commit -m "Mirror Team B lineup to face Team A" && git push

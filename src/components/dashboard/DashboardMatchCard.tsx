@@ -63,16 +63,23 @@ function TeamHalf({
   teamName,
   score,
   players,
+  mirror = false,
 }: {
   teamName: string;
   score: number;
   players: LineupPlayer[];
+  mirror?: boolean;
 }) {
   const att = players.filter((p) => p.position === "ATT");
   const def = players.filter((p) => p.position === "DEF");
   const gk = players.filter((p) => p.position === "GK");
   const unassigned = players.filter((p) => p.position === null);
   const hasFormation = gk.length + def.length + att.length > 0;
+
+  // Team A reads goal-line-to-attack downward (GK, DEF, ATT). Team B is mirrored so the
+  // two teams face each other like a real pitch: attackers meet in the middle, so Team B
+  // reads ATT, DEF, GK top to bottom.
+  const rows = mirror ? [att, def, gk] : [gk, def, att];
 
   return (
     <div>
@@ -82,10 +89,9 @@ function TeamHalf({
       </div>
       {hasFormation ? (
         <div className="space-y-5 py-1">
-          {/* Goal line to attack: Goalkeeper, then Defenders, then Attackers */}
-          <PositionRow players={gk} />
-          <PositionRow players={def} />
-          <PositionRow players={att} />
+          {rows.map((row, i) => (
+            <PositionRow key={i} players={row} />
+          ))}
         </div>
       ) : (
         <div className="space-y-4 py-1">
@@ -169,7 +175,7 @@ export function DashboardMatchCard({
         <div className="relative mx-3 mb-4 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #B8862E 0%, #8C6620 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/20" />
           <div className="px-3 pb-2 pt-3">
-            <TeamHalf teamName="Team B" score={teamBScore} players={teamBPlayers} />
+            <TeamHalf teamName="Team B" score={teamBScore} players={teamBPlayers} mirror={true} />
           </div>
         </div>
       </div>
