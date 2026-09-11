@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, getMemberSession } from "@/lib/auth";
 import {
   createMatch,
   getAllMatchesSummary,
@@ -14,9 +14,15 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  // Entering today's match is allowed for the admin OR any logged-in member.
+  // (Editing/deleting existing matches stays admin-only - see [id]/route.ts.)
+  const admin = await getSession();
+  const member = admin ? null : await getMemberSession();
+  if (!admin && !member) {
+    return NextResponse.json(
+      { error: "You must be logged in to enter a match." },
+      { status: 401 }
+    );
   }
 
   const body = (await req.json().catch(() => null)) as MatchInput | null;

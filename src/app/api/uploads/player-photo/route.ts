@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, getMemberSession } from "@/lib/auth";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import crypto from "crypto";
@@ -8,9 +8,13 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  // Uploading a photo file is allowed for the admin OR any logged-in member.
+  // (What a member can DO with the resulting URL is restricted separately: a member
+  // can only set it as their OWN photo - see /api/member/photo.)
+  const admin = await getSession();
+  const member = admin ? null : await getMemberSession();
+  if (!admin && !member) {
+    return NextResponse.json({ error: "You must be logged in to upload a photo." }, { status: 401 });
   }
 
   const formData = await req.formData().catch(() => null);

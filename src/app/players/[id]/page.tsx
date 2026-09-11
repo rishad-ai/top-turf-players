@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import { getPlayerById } from "@/lib/players";
 import { calculatePlayerStats, calculatePlayerMatchHistory } from "@/lib/stats";
 import { calculatePlayerStreaks } from "@/lib/streaks";
+import { getMemberSession } from "@/lib/auth";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { PlayerTypeBadge, InactiveBadge } from "@/components/players/PlayerBadges";
 import { HotStreakBadge, ColdStreakBadge } from "@/components/players/StreakBadges";
 import { RecentForm } from "@/components/players/RecentForm";
 import { PlayerMatchHistoryList } from "@/components/players/PlayerMatchHistoryList";
+import { ChangeMyPhotoButton } from "@/components/players/ChangeMyPhotoButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 function StatBlock({ label, value }: { label: string; value: string | number }) {
@@ -33,6 +35,8 @@ export default async function PlayerProfilePage({
   const stats = await calculatePlayerStats(playerId);
   const history = await calculatePlayerMatchHistory(playerId);
   const streaks = await calculatePlayerStreaks(playerId);
+  const member = await getMemberSession();
+  const isOwnProfile = member?.playerId === playerId;
 
   return (
     <div className="space-y-6">
@@ -51,6 +55,11 @@ export default async function PlayerProfilePage({
               unit={player.playerType === "irregular" ? "matches" : "days"}
             />
           </div>
+          {isOwnProfile && (
+            <div className="mt-3">
+              <ChangeMyPhotoButton />
+            </div>
+          )}
         </div>
       </div>
 

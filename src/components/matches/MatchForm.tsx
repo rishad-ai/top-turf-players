@@ -54,9 +54,11 @@ function allFormationIds(f: FormationState): number[] {
 export function MatchForm({
   allPlayers,
   initial,
+  redirectTo = "/admin/matches",
 }: {
   allPlayers: PickablePlayer[];
   initial?: MatchFormInitial;
+  redirectTo?: string;
 }) {
   const router = useRouter();
   const isEdit = Boolean(initial?.matchId);
@@ -187,7 +189,7 @@ export function MatchForm({
       return;
     }
 
-    router.push("/admin/matches");
+    router.push(redirectTo);
     router.refresh();
   }
 

@@ -1,14 +1,18 @@
 import { calculateDashboardStats } from "@/lib/dashboard";
-import { getSession } from "@/lib/auth";
-import { TodaysMatchCard } from "@/components/dashboard/TodaysMatchCard";
-import { MatchLineupCard } from "@/components/dashboard/MatchLineupCard";
+import { getSession, getMemberSession } from "@/lib/auth";
+import { DashboardMatchCard, DashboardNoMatchCard } from "@/components/dashboard/DashboardMatchCard";
+import { WinnersStrip } from "@/components/dashboard/WinnersStrip";
 import { BiggestResultCard } from "@/components/dashboard/BiggestResultCard";
 import { HotStreaksRow, ColdStreaksRow } from "@/components/dashboard/StreakRows";
 import { TopScorerCard, MiniRankings } from "@/components/dashboard/TopScorerAndRankings";
 
 export default async function HomePage() {
-  const [stats, session] = await Promise.all([calculateDashboardStats(), getSession()]);
-  const isAdmin = Boolean(session);
+  const [stats, admin, member] = await Promise.all([
+    calculateDashboardStats(),
+    getSession(),
+    getMemberSession(),
+  ]);
+  const canEnterMatch = Boolean(admin || member);
   const currentYear = new Date(stats.todayDate).getFullYear();
 
   const teamAStarters = stats.match?.matchPlayers
@@ -30,20 +34,22 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-6">
-      {/* Mobile: single stacked column. Desktop: hero + winners on the left,
-          streaks/scorer/rankings on the right. */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.1fr_1fr]">
         <div className="space-y-6">
-          <TodaysMatchCard stats={stats} isAdmin={isAdmin} />
-
-          {stats.match && (
-            <MatchLineupCard
-              matchDate={stats.match.match.matchDate}
-              teamAScore={stats.match.match.teamAScore}
-              teamBScore={stats.match.match.teamBScore}
-              teamAPlayers={teamAStarters}
-              teamBPlayers={teamBStarters}
-            />
+          {stats.match ? (
+            <>
+              <DashboardMatchCard
+                matchDate={stats.match.match.matchDate}
+                label={stats.isLatestFallback ? "Latest result" : "Today's match"}
+                teamAScore={stats.match.match.teamAScore}
+                teamBScore={stats.match.match.teamBScore}
+                teamAPlayers={teamAStarters}
+                teamBPlayers={teamBStarters}
+              />
+              <WinnersStrip winners={stats.winners} isDraw={stats.isDraw} />
+            </>
+          ) : (
+            <DashboardNoMatchCard canEnterMatch={canEnterMatch} />
           )}
 
           <div className="hidden md:block">
