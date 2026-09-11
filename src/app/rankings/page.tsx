@@ -40,13 +40,16 @@ export default async function RankingsPage({
     : "wins";
 
   const leaderboard = await calculateLeaderboard(metric);
-  // Players with zero matches clutter every ranking view - hide them here (they still
-  // show up fine on their own profile and in the players list).
-  const ranked = leaderboard.filter((p) => p.matchesPlayed > 0);
+  // Players with zero matches clutter every ranking view - hide them. Show only the
+  // top 10 for a fast, focused leaderboard.
+  const ranked = leaderboard.filter((p) => p.matchesPlayed > 0).slice(0, 10);
 
   return (
     <div className="space-y-4">
-      <h1 className="font-display text-2xl font-semibold text-ink">Rankings</h1>
+      <div className="flex items-baseline justify-between">
+        <h1 className="font-display text-2xl font-semibold text-ink">Rankings</h1>
+        <span className="text-sm text-ink-muted">Top 10</span>
+      </div>
 
       <RankingTabs active={metric} />
 

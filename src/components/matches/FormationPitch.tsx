@@ -62,9 +62,9 @@ export function FormationPitch({
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20" />
 
         <div className="relative space-y-6 py-2">
-          <PositionRow players={attackers} label="ATT" />
-          <PositionRow players={defenders} label="DEF" />
           <PositionRow players={goalkeeper} label="GK" />
+          <PositionRow players={defenders} label="DEF" />
+          <PositionRow players={attackers} label="ATT" />
         </div>
       </div>
     </div>

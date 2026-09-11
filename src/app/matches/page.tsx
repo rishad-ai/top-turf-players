@@ -18,7 +18,7 @@ export default async function MatchesPage({
 }) {
   const sp = await searchParams;
 
-  const filters: MatchSearchFilters = {
+  const explicitFilters: MatchSearchFilters = {
     date: sp.date || undefined,
     playerId: sp.player ? Number(sp.player) : undefined,
     team: sp.team === "A" || sp.team === "B" ? sp.team : undefined,
@@ -33,12 +33,19 @@ export default async function MatchesPage({
     score: sp.score || undefined,
   };
 
+  const hasFilters = Object.values(explicitFilters).some((v) => v !== undefined);
+
+  // Default view shows only the current month (fast, relevant). Any explicit filter
+  // switches to searching all history instead.
+  const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const filters: MatchSearchFilters = hasFilters
+    ? explicitFilters
+    : { month: currentMonth };
+
   const [results, allPlayers] = await Promise.all([
     searchMatches(filters),
     getAllPlayers(),
   ]);
-
-  const hasFilters = Object.values(filters).some((v) => v !== undefined);
 
   return (
     <div className="space-y-4">
@@ -48,16 +55,16 @@ export default async function MatchesPage({
 
       <p className="text-sm text-ink-muted">
         {results.length} match{results.length === 1 ? "" : "es"}
-        {hasFilters ? " match your filters" : " total"}
+        {hasFilters ? " match your filters" : " this month"}
       </p>
 
       {results.length === 0 ? (
         <EmptyState
-          title={hasFilters ? "No matches found" : "No matches yet"}
+          title={hasFilters ? "No matches found" : "No matches this month"}
           description={
             hasFilters
               ? "Try adjusting or clearing your filters."
-              : "Check back after the first match is entered."
+              : "No matches recorded yet this month. Use the filters above to search earlier matches."
           }
         />
       ) : (

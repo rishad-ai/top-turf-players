@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { players, matchPlayers, matches, goals } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { calculatePlayerStreaks, type StreakSummary } from "./streaks";
+import { calculatePlayerStreaks, computeStreaksFromData, type StreakSummary, type Result } from "./streaks";
 
 export type PlayerStats = {
   playerId: number;
@@ -126,23 +126,78 @@ export type LeaderboardEntry = PlayerStats &
     playerType: "regular" | "irregular";
   };
 
-/** Leaderboard across all active players, sorted by the requested metric (descending). */
+/** Leaderboard across players, sorted by the requested metric (descending).
+ * Batched: fetches all data once and computes in memory, instead of per-player
+ * queries. This is the fix for slow rankings loads. */
 export async function calculateLeaderboard(
   metric: LeaderboardMetric,
   { includeInactive = false }: { includeInactive?: boolean } = {}
 ): Promise<LeaderboardEntry[]> {
-  const allPlayers = includeInactive
-    ? await db.query.players.findMany()
-    : await db.query.players.findMany({ where: eq(players.isActive, true) });
+  const [allPlayers, allMatches, allMatchPlayers, allGoals] = await Promise.all([
+    db.query.players.findMany(),
+    db.query.matches.findMany(),
+    db.query.matchPlayers.findMany(),
+    db.query.goals.findMany(),
+  ]);
+
+  let systemEarliest: string | null = null;
+  let systemLatest: string | null = null;
+  for (const m of allMatches) {
+    if (!systemEarliest || m.matchDate < systemEarliest) systemEarliest = m.matchDate;
+    if (!systemLatest || m.matchDate > systemLatest) systemLatest = m.matchDate;
+  }
+
+  const matchDateById = new Map<number, string>();
+  for (const m of allMatches) matchDateById.set(m.id, m.matchDate);
+
+  const playedByPlayer = new Map<number, { matchDate: string; result: Result }[]>();
+  for (const mp of allMatchPlayers) {
+    if (!mp.played) continue;
+    const matchDate = matchDateById.get(mp.matchId);
+    if (!matchDate) continue;
+    const list = playedByPlayer.get(mp.playerId) ?? [];
+    list.push({ matchDate, result: mp.result as Result });
+    playedByPlayer.set(mp.playerId, list);
+  }
+
+  const goalsByPlayer = new Map<number, number>();
+  for (const g of allGoals) {
+    goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+  }
 
   const withStats: LeaderboardEntry[] = [];
   for (const p of allPlayers) {
-    const [stats, streaks] = await Promise.all([
-      calculatePlayerStats(p.id),
-      calculatePlayerStreaks(p.id),
-    ]);
+    if (!includeInactive && !p.isActive) continue;
+
+    const played = (playedByPlayer.get(p.id) ?? []).sort((a, b) =>
+      a.matchDate < b.matchDate ? -1 : a.matchDate > b.matchDate ? 1 : 0
+    );
+    const wins = played.filter((r) => r.result === "win").length;
+    const losses = played.filter((r) => r.result === "loss").length;
+    const draws = played.filter((r) => r.result === "draw").length;
+    const matchesPlayed = played.length;
+    const goalCount = goalsByPlayer.get(p.id) ?? 0;
+    const winPercentage = matchesPlayed === 0 ? 0 : Math.round((wins / matchesPlayed) * 1000) / 10;
+    const last = played[played.length - 1];
+    const createdDate = p.createdAt.toISOString().slice(0, 10);
+    const streaks = computeStreaksFromData(
+      p.playerType as "regular" | "irregular",
+      played,
+      createdDate,
+      systemEarliest,
+      systemLatest
+    );
+
     withStats.push({
-      ...stats,
+      playerId: p.id,
+      matchesPlayed,
+      wins,
+      losses,
+      draws,
+      goals: goalCount,
+      winPercentage,
+      lastMatchDate: last?.matchDate ?? null,
+      lastResult: (last?.result as "win" | "loss" | "draw" | undefined) ?? null,
       ...streaks,
       name: p.name,
       photoUrl: p.photoUrl,

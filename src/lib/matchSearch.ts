@@ -4,6 +4,7 @@ import { eq, and, inArray, desc } from "drizzle-orm";
 
 export type MatchSearchFilters = {
   date?: string;
+  month?: string; // "YYYY-MM" - matches all dates in that month
   playerId?: number;
   team?: "A" | "B";
   result?: "win" | "loss" | "draw"; // relative to playerId - ignored if no playerId given
@@ -54,6 +55,10 @@ export async function searchMatches(filters: MatchSearchFilters): Promise<MatchS
     .orderBy(desc(matches.matchDate));
 
   let results = rows;
+
+  if (filters.month) {
+    results = results.filter((m) => m.matchDate.startsWith(`${filters.month}-`));
+  }
 
   if (filters.winner) {
     results = results.filter((m) => {

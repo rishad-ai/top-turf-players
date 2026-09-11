@@ -60,11 +60,13 @@ function PositionRow({ players }: { players: LineupPlayer[] }) {
 }
 
 function TeamHalf({
+  teamName,
+  score,
   players,
-  attackersFirst,
 }: {
+  teamName: string;
+  score: number;
   players: LineupPlayer[];
-  attackersFirst: boolean;
 }) {
   const att = players.filter((p) => p.position === "ATT");
   const def = players.filter((p) => p.position === "DEF");
@@ -72,21 +74,24 @@ function TeamHalf({
   const unassigned = players.filter((p) => p.position === null);
   const hasFormation = gk.length + def.length + att.length > 0;
 
-  if (!hasFormation) {
-    return (
-      <div className="space-y-4 py-2">
-        <PositionRow players={unassigned} />
-      </div>
-    );
-  }
-
-  // attackersFirst = Team A shown attacking "up"; Team B mirrored (GK first).
-  const rows = attackersFirst ? [att, def, gk] : [gk, def, att];
   return (
-    <div className="space-y-5 py-2">
-      {rows.map((row, i) => (
-        <PositionRow key={i} players={row} />
-      ))}
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <span className="font-display text-sm font-bold text-white">{teamName}</span>
+        <span className="font-display text-lg font-bold text-white">{score}</span>
+      </div>
+      {hasFormation ? (
+        <div className="space-y-5 py-1">
+          {/* Goal line to attack: Goalkeeper, then Defenders, then Attackers */}
+          <PositionRow players={gk} />
+          <PositionRow players={def} />
+          <PositionRow players={att} />
+        </div>
+      ) : (
+        <div className="space-y-4 py-1">
+          <PositionRow players={unassigned} />
+        </div>
+      )}
     </div>
   );
 }
@@ -142,7 +147,7 @@ export function DashboardMatchCard({
           </div>
         </div>
 
-        {/* Scoreboard: Team A [score] : [score] Team B */}
+        {/* Scoreboard summary: Team A [score] : [score] Team B */}
         <div className="flex items-center justify-center gap-4 px-4 py-3">
           <span className="flex-1 text-right font-display text-sm font-bold text-white sm:text-base">Team A</span>
           <span className="font-display text-3xl font-bold text-white sm:text-4xl">
@@ -152,19 +157,19 @@ export function DashboardMatchCard({
         </div>
         <p className="pb-2 text-center text-[11px] text-white/50">{matchDate}</p>
 
-        {/* Team A pitch (attacking up) */}
+        {/* Team A pitch - goal line (GK) at top, attackers toward the middle */}
         <div className="relative mx-3 mb-3 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #1E7A46 0%, #145C34 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 bottom-0 h-px bg-white/20" />
-          <div className="px-3 pb-2 pt-1">
-            <TeamHalf players={teamAPlayers} attackersFirst={true} />
+          <div className="px-3 pb-2 pt-3">
+            <TeamHalf teamName="Team A" score={teamAScore} players={teamAPlayers} />
           </div>
         </div>
 
-        {/* Team B pitch (mirrored, GK up) */}
+        {/* Team B pitch - same orientation, goal line (GK) at top */}
         <div className="relative mx-3 mb-4 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #B8862E 0%, #8C6620 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/20" />
-          <div className="px-3 pb-2 pt-1">
-            <TeamHalf players={teamBPlayers} attackersFirst={false} />
+          <div className="px-3 pb-2 pt-3">
+            <TeamHalf teamName="Team B" score={teamBScore} players={teamBPlayers} />
           </div>
         </div>
       </div>
