@@ -1,11 +1,18 @@
-# Update: mirror Team B lineup to face Team A
+# Update: match detail page now matches the dashboard lineup
 
 One file changed. No dependencies, no migration.
 
-Team A now reads goalkeeper (top) -> defenders -> attackers (bottom).
-Team B is mirrored: attackers (top) -> defenders -> goalkeeper (bottom),
-so the two teams face each other in the middle like a real pitch.
+When you click a match from history, it now shows the SAME merged card as the
+dashboard: scoreboard heading (Team A [score] : [score] Team B) over both teams'
+pitches, with Team B mirrored to face Team A, a "Download lineup image" button, and
+scorers + substitutes listed below.
+
+## Also delete this now-unused file (optional cleanup)
+src/components/matches/FormationPitch.tsx
+It was the old separate-cards layout, no longer used. The build works with or without
+deleting it, but it's dead code now.
 
 ## Steps
-1. Overwrite src/components/dashboard/DashboardMatchCard.tsx with the one in this zip.
-2. git add . && git commit -m "Mirror Team B lineup to face Team A" && git push
+1. Overwrite src/app/matches/[id]/page.tsx with the one in this zip.
+2. (optional) delete src/components/matches/FormationPitch.tsx
+3. git add . && git commit -m "Match detail page matches dashboard lineup" && git push
