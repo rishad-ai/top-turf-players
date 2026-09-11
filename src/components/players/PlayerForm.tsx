@@ -9,6 +9,7 @@ export type PlayerFormValues = {
   name: string;
   playerType: "regular" | "irregular";
   photoUrl: string | null;
+  mobileNumber?: string | null;
 };
 
 export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
@@ -20,6 +21,7 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
     initial?.playerType || "regular"
   );
   const [photoUrl, setPhotoUrl] = useState<string | null>(initial?.photoUrl || null);
+  const [mobileNumber, setMobileNumber] = useState(initial?.mobileNumber || "");
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +70,7 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), playerType, photoUrl }),
+      body: JSON.stringify({ name: name.trim(), playerType, photoUrl, mobileNumber: mobileNumber.trim() }),
     });
 
     setSaving(false);
@@ -118,6 +120,21 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
           required
           className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-pitch focus:ring-1 focus:ring-pitch"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-ink">Mobile number</label>
+        <input
+          type="tel"
+          inputMode="numeric"
+          value={mobileNumber}
+          onChange={(e) => setMobileNumber(e.target.value)}
+          placeholder="10-digit number"
+          className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none focus:border-pitch focus:ring-1 focus:ring-pitch"
+        />
+        <p className="mt-1 text-xs text-ink-muted">
+          Used by this member to log in. Optional, but needed for them to identify themselves.
+        </p>
       </div>
 
       <div>

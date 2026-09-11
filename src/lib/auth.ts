@@ -58,3 +58,48 @@ export async function requireAdmin() {
   }
   return session;
 }
+
+// ---- Member sessions (mobile-number login, never expires) ----
+// Separate cookie from admin. Members identify themselves once; the session is
+// long-lived so they "stay logged in forever" on that device.
+
+const MEMBER_COOKIE = "top_turf_member_session";
+const MEMBER_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 5; // ~5 years (effectively forever)
+
+export type MemberSession = { playerId: number; name: string };
+
+export function createMemberToken(payload: MemberSession): string {
+  // No expiresIn -> token itself doesn't expire; the cookie carries the long maxAge.
+  return jwt.sign(payload, JWT_SECRET);
+}
+
+export function verifyMemberToken(token: string): MemberSession | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as MemberSession;
+  } catch {
+    return null;
+  }
+}
+
+export async function setMemberCookie(token: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(MEMBER_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MEMBER_MAX_AGE_SECONDS,
+  });
+}
+
+export async function clearMemberCookie() {
+  const cookieStore = await cookies();
+  cookieStore.delete(MEMBER_COOKIE);
+}
+
+export async function getMemberSession(): Promise<MemberSession | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(MEMBER_COOKIE)?.value;
+  if (!token) return null;
+  return verifyMemberToken(token);
+}

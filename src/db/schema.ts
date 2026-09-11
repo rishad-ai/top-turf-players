@@ -23,6 +23,12 @@ export const players = pgTable("players", {
     .notNull()
     .default("regular"),
   isActive: boolean("is_active").notNull().default(true),
+  // Mobile number doubles as the member login credential. Admin-managed only.
+  // Unique so one number maps to exactly one member; nullable because not every
+  // player record must have one set yet.
+  mobileNumber: text("mobile_number").unique(),
+  // When this member last identified themselves via mobile-number login.
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),

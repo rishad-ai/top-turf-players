@@ -23,6 +23,7 @@ export default async function EditPlayerPage({
           name: player.name,
           playerType: player.playerType as "regular" | "irregular",
           photoUrl: player.photoUrl,
+          mobileNumber: player.mobileNumber,
         }}
       />
     </div>

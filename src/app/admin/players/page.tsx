@@ -42,9 +42,19 @@ export default async function AdminPlayersPage() {
                 <p className="truncate font-display text-sm font-semibold text-ink">
                   {p.name}
                 </p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <PlayerTypeBadge type={p.playerType as "regular" | "irregular"} />
                   {!p.isActive && <InactiveBadge />}
+                  {p.mobileNumber ? (
+                    <span className="text-xs text-ink-muted">📱 {p.mobileNumber}</span>
+                  ) : (
+                    <span className="text-xs text-ink-muted/70">no number</span>
+                  )}
+                  {p.lastLoginAt && (
+                    <span className="text-xs text-pitch-dark">
+                      ✓ logged in {new Date(p.lastLoginAt).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">

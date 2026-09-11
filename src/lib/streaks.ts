@@ -2,34 +2,69 @@ import { db } from "@/db";
 import { players, matchPlayers, matches } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
-type Result = "win" | "loss" | "draw";
+export type Result = "win" | "loss" | "draw";
 
 // ---- Date helpers (pure UTC, string-based YYYY-MM-DD to avoid timezone drift) ----
 
-function toUTCDate(dateStr: string): Date {
+export function toUTCDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00Z`);
 }
 
-function toISO(date: Date): string {
+export function toISO(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function addDays(dateStr: string, delta: number): string {
+export function addDays(dateStr: string, delta: number): string {
   const d = toUTCDate(dateStr);
   d.setUTCDate(d.getUTCDate() + delta);
   return toISO(d);
 }
 
-function isBefore(a: string, b: string): boolean {
+export function isBefore(a: string, b: string): boolean {
   return toUTCDate(a).getTime() < toUTCDate(b).getTime();
 }
 
-function isAfter(a: string, b: string): boolean {
+export function isAfter(a: string, b: string): boolean {
   return toUTCDate(a).getTime() > toUTCDate(b).getTime();
 }
 
-function maxDate(a: string, b: string): string {
+export function maxDate(a: string, b: string): string {
   return isAfter(a, b) ? a : b;
+}
+
+/**
+ * Computes all four streak numbers for a single player from already-fetched data,
+ * with no database access. Used by the batched dashboard/leaderboard path to avoid
+ * per-player queries.
+ */
+export function computeStreaksFromData(
+  playerType: "regular" | "irregular",
+  resultsAscByDate: { matchDate: string; result: Result }[], // this player's PLAYED matches, ascending
+  createdDate: string,
+  systemEarliest: string | null,
+  systemLatest: string | null
+): StreakSummary {
+  const seqAsc = resultsAscByDate.map((r) => r.result);
+  const seqDesc = [...seqAsc].reverse();
+
+  const winningStreak = computeWinningStreakFromSequence(seqDesc);
+  const longestWinningStreak = computeLongestWinningStreakFromSequence(seqAsc);
+
+  let losingStreak = 0;
+  let longestLosingStreak = 0;
+
+  if (playerType === "irregular") {
+    losingStreak = computeIrregularLosingStreakFromSequence(seqDesc);
+    longestLosingStreak = computeIrregularLongestLosingStreakFromSequence(seqAsc);
+  } else if (systemEarliest && systemLatest) {
+    const startBoundary = maxDate(systemEarliest, createdDate);
+    const resultsByDate = new Map<string, Result>();
+    for (const r of resultsAscByDate) resultsByDate.set(r.matchDate, r.result);
+    losingStreak = computeRegularLosingStreakFromMap(resultsByDate, systemLatest, startBoundary);
+    longestLosingStreak = computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, systemLatest);
+  }
+
+  return { winningStreak, longestWinningStreak, losingStreak, longestLosingStreak };
 }
 
 // ---- Data access ----

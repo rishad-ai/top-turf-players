@@ -1,9 +1,9 @@
 import { getMatchDetail } from "./matchService";
 import { db } from "@/db";
-import { matches, players } from "@/db/schema";
+import { matches, players, matchPlayers, goals } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { calculatePlayerStats, type PlayerStats } from "./stats";
-import { calculatePlayerStreaks, type StreakSummary } from "./streaks";
+import { computeStreaksFromData, type Result, type StreakSummary } from "./streaks";
+import type { PlayerStats } from "./stats";
 
 type MatchDetailResult = NonNullable<Awaited<ReturnType<typeof getMatchDetail>>>;
 
@@ -27,7 +27,7 @@ export type DashboardStats = {
   todayDate: string;
   hasTodayMatch: boolean;
   match: MatchDetailResult | null;
-  isLatestFallback: boolean; // true when showing the latest past match instead of today's
+  isLatestFallback: boolean;
   winners: { playerId: number; name: string; photoUrl: string | null }[];
   isDraw: boolean;
   hotStreakPlayers: DashboardPlayerSummary[];
@@ -41,45 +41,47 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** The single largest-margin (most lopsided) match played in the given year, if any. */
-export async function calculateBiggestResultOfYear(year: number): Promise<YearlyExtreme | null> {
-  const allMatches = await db.query.matches.findMany();
-  const yearMatches = allMatches.filter((m) => m.matchDate.startsWith(`${year}-`));
-
-  let best: YearlyExtreme | null = null;
-  for (const m of yearMatches) {
-    const margin = Math.abs(m.teamAScore - m.teamBScore);
-    if (margin === 0) continue; // draws have no "winner" for this stat
-    if (!best || margin > best.margin) {
-      best = {
-        matchId: m.id,
-        matchDate: m.matchDate,
-        teamAScore: m.teamAScore,
-        teamBScore: m.teamBScore,
-        winningTeam: m.teamAScore > m.teamBScore ? "A" : "B",
-        margin,
-      };
-    }
-  }
-  return best;
-}
-
+/**
+ * Single optimized pass for the whole dashboard. Fetches every table once
+ * (players, matches, match_players, goals) and computes all per-player stats and
+ * streaks in memory, instead of issuing hundreds of per-player queries. This is the
+ * main fix for slow dashboard loads.
+ */
 export async function calculateDashboardStats(): Promise<DashboardStats> {
   const today = todayISO();
 
-  const todayMatchRow = await db.query.matches.findFirst({
-    where: eq(matches.matchDate, today),
-  });
+  // --- Fetch everything once ---
+  const [allPlayers, allMatches, allMatchPlayers, allGoals] = await Promise.all([
+    db.query.players.findMany(),
+    db.query.matches.findMany(),
+    db.query.matchPlayers.findMany(),
+    db.query.goals.findMany(),
+  ]);
 
+  // --- System date bounds ---
+  let systemEarliest: string | null = null;
+  let systemLatest: string | null = null;
+  for (const m of allMatches) {
+    if (!systemEarliest || m.matchDate < systemEarliest) systemEarliest = m.matchDate;
+    if (!systemLatest || m.matchDate > systemLatest) systemLatest = m.matchDate;
+  }
+
+  const matchDateById = new Map<number, string>();
+  const matchById = new Map<number, (typeof allMatches)[number]>();
+  for (const m of allMatches) {
+    matchDateById.set(m.id, m.matchDate);
+    matchById.set(m.id, m);
+  }
+
+  // --- Today's match (or latest fallback) with full detail ---
+  const todayMatchRow = allMatches.find((m) => m.matchDate === today) ?? null;
   let match: MatchDetailResult | null = null;
   let isLatestFallback = false;
 
   if (todayMatchRow) {
     match = await getMatchDetail(todayMatchRow.id);
   } else {
-    const latest = await db.query.matches.findFirst({
-      orderBy: [desc(matches.matchDate)],
-    });
+    const latest = [...allMatches].sort((a, b) => (a.matchDate < b.matchDate ? 1 : -1))[0];
     if (latest) {
       match = await getMatchDetail(latest.id);
       isLatestFallback = true;
@@ -99,16 +101,58 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     }
   }
 
-  const activePlayers = await db.query.players.findMany({ where: eq(players.isActive, true) });
+  // --- Group played results and goals by player, in memory ---
+  const playedByPlayer = new Map<number, { matchDate: string; result: Result }[]>();
+  for (const mp of allMatchPlayers) {
+    if (!mp.played) continue;
+    const matchDate = matchDateById.get(mp.matchId);
+    if (!matchDate) continue;
+    const list = playedByPlayer.get(mp.playerId) ?? [];
+    list.push({ matchDate, result: mp.result as Result });
+    playedByPlayer.set(mp.playerId, list);
+  }
 
+  const goalsByPlayer = new Map<number, number>();
+  for (const g of allGoals) {
+    goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+  }
+
+  // --- Build a summary per active player ---
   const summaries: DashboardPlayerSummary[] = [];
-  for (const p of activePlayers) {
-    const [stats, streaks] = await Promise.all([
-      calculatePlayerStats(p.id),
-      calculatePlayerStreaks(p.id),
-    ]);
+  for (const p of allPlayers) {
+    if (!p.isActive) continue;
+
+    const played = (playedByPlayer.get(p.id) ?? []).sort((a, b) =>
+      a.matchDate < b.matchDate ? -1 : a.matchDate > b.matchDate ? 1 : 0
+    );
+
+    const wins = played.filter((r) => r.result === "win").length;
+    const losses = played.filter((r) => r.result === "loss").length;
+    const draws = played.filter((r) => r.result === "draw").length;
+    const matchesPlayed = played.length;
+    const goalCount = goalsByPlayer.get(p.id) ?? 0;
+    const winPercentage = matchesPlayed === 0 ? 0 : Math.round((wins / matchesPlayed) * 1000) / 10;
+    const last = played[played.length - 1];
+
+    const createdDate = p.createdAt.toISOString().slice(0, 10);
+    const streaks = computeStreaksFromData(
+      p.playerType as "regular" | "irregular",
+      played,
+      createdDate,
+      systemEarliest,
+      systemLatest
+    );
+
     summaries.push({
-      ...stats,
+      playerId: p.id,
+      matchesPlayed,
+      wins,
+      losses,
+      draws,
+      goals: goalCount,
+      winPercentage,
+      lastMatchDate: last?.matchDate ?? null,
+      lastResult: (last?.result as "win" | "loss" | "draw" | undefined) ?? null,
       ...streaks,
       name: p.name,
       photoUrl: p.photoUrl,
@@ -129,8 +173,24 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
 
   const topPlayersByWins = [...summaries].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
+  // --- Biggest result of the current year ---
   const currentYear = new Date(today).getFullYear();
-  const biggestResultThisYear = await calculateBiggestResultOfYear(currentYear);
+  let biggestResultThisYear: YearlyExtreme | null = null;
+  for (const m of allMatches) {
+    if (!m.matchDate.startsWith(`${currentYear}-`)) continue;
+    const margin = Math.abs(m.teamAScore - m.teamBScore);
+    if (margin === 0) continue;
+    if (!biggestResultThisYear || margin > biggestResultThisYear.margin) {
+      biggestResultThisYear = {
+        matchId: m.id,
+        matchDate: m.matchDate,
+        teamAScore: m.teamAScore,
+        teamBScore: m.teamBScore,
+        winningTeam: m.teamAScore > m.teamBScore ? "A" : "B",
+        margin,
+      };
+    }
+  }
 
   return {
     todayDate: today,

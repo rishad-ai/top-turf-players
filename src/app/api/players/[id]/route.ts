@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { players } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { eq } from "drizzle-orm";
+import { normalizeMobile, isValidMobile } from "@/lib/mobile";
 
 async function getPlayerId(context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -65,6 +66,29 @@ export async function PATCH(
   }
   if (typeof body?.photoUrl === "string" || body?.photoUrl === null) {
     updates.photoUrl = body.photoUrl;
+  }
+
+  // Mobile number: empty string clears it; a value is validated + checked for clashes.
+  if (typeof body?.mobileNumber === "string" || body?.mobileNumber === null) {
+    const raw = (body.mobileNumber || "").trim();
+    if (raw === "") {
+      updates.mobileNumber = null;
+    } else if (!isValidMobile(raw)) {
+      return NextResponse.json({ error: "Mobile number must be 10 digits." }, { status: 400 });
+    } else {
+      const normalized = normalizeMobile(raw);
+      const all = await db.query.players.findMany();
+      const clash = all.find(
+        (p) => p.id !== playerId && p.mobileNumber && normalizeMobile(p.mobileNumber) === normalized
+      );
+      if (clash) {
+        return NextResponse.json(
+          { error: `That mobile number is already assigned to ${clash.name}.` },
+          { status: 409 }
+        );
+      }
+      updates.mobileNumber = normalized;
+    }
   }
 
   if (Object.keys(updates).length === 0) {

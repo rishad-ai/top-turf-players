@@ -70,6 +70,10 @@ function TeamPitch({
   const att = players.filter((p) => p.position === "ATT");
   const def = players.filter((p) => p.position === "DEF");
   const gk = players.filter((p) => p.position === "GK");
+  // Players from matches entered before positions existed have position === null.
+  // Show them in a plain row so the lineup still displays everyone.
+  const unassigned = players.filter((p) => p.position === null);
+  const hasFormation = gk.length + def.length + att.length > 0;
 
   return (
     <div
@@ -84,12 +88,18 @@ function TeamPitch({
         <span className="font-display text-lg font-bold">{score}</span>
       </div>
       <div className="relative space-y-5 py-1">
-        <PositionRow players={att} />
-        <PositionRow players={def} />
-        <PositionRow players={gk} />
+        {hasFormation ? (
+          <>
+            <PositionRow players={att} />
+            <PositionRow players={def} />
+            <PositionRow players={gk} />
+          </>
+        ) : (
+          <PositionRow players={unassigned} />
+        )}
       </div>
       <p className="relative mt-3 text-center text-[10px] font-bold uppercase tracking-wider text-white/60">
-        1-3-3
+        {hasFormation ? "1-3-3" : `${players.length} players`}
       </p>
     </div>
   );
