@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { TEAM_A_NAME, TEAM_B_NAME } from "@/lib/teams";
 
 export type MatchFilterPlayer = { id: number; name: string };
 
@@ -105,8 +106,8 @@ export function MatchSearchFilters({ players }: { players: MatchFilterPlayer[] }
                 className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-pitch focus:ring-1 focus:ring-pitch"
               >
                 <option value="">Any</option>
-                <option value="A">Team A</option>
-                <option value="B">Team B</option>
+                <option value="A">{TEAM_A_NAME}</option>
+                <option value="B">{TEAM_B_NAME}</option>
                 <option value="draw">Draw</option>
               </select>
             </div>
@@ -121,8 +122,8 @@ export function MatchSearchFilters({ players }: { players: MatchFilterPlayer[] }
                     className="w-full rounded-lg border border-line bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-pitch focus:ring-1 focus:ring-pitch"
                   >
                     <option value="">Any</option>
-                    <option value="A">Team A</option>
-                    <option value="B">Team B</option>
+                    <option value="A">{TEAM_A_NAME}</option>
+                    <option value="B">{TEAM_B_NAME}</option>
                   </select>
                 </div>
                 <div>

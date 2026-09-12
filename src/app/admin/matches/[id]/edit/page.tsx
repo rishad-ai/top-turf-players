@@ -39,10 +39,10 @@ export default async function EditMatchPage({
 
   const goalsA = detail.goals
     .filter((g) => g.team === "A")
-    .map((g) => ({ playerId: g.playerId, minute: g.minute }));
+    .map((g) => ({ playerId: g.playerId, minute: g.minute, isOwnGoal: g.isOwnGoal }));
   const goalsB = detail.goals
     .filter((g) => g.team === "B")
-    .map((g) => ({ playerId: g.playerId, minute: g.minute }));
+    .map((g) => ({ playerId: g.playerId, minute: g.minute, isOwnGoal: g.isOwnGoal }));
 
   const initial: MatchFormInitial = {
     matchId: detail.match.id,

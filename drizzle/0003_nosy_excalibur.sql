@@ -1,0 +1,1 @@
+ALTER TABLE "goals" ADD COLUMN "is_own_goal" boolean DEFAULT false NOT NULL;

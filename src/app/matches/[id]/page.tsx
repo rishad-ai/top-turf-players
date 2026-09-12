@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getMatchDetail } from "@/lib/matchService";
 import { DashboardMatchCard } from "@/components/dashboard/DashboardMatchCard";
+import { TEAM_A_NAME, TEAM_B_NAME } from "@/lib/teams";
 
 export default async function MatchDetailPage({
   params,
@@ -17,6 +18,12 @@ export default async function MatchDetailPage({
 
   const { match, matchPlayers, goals } = detail;
 
+  const goalsByPlayer = new Map<number, number>();
+  for (const g of goals) {
+    if (g.isOwnGoal) continue;
+    goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+  }
+
   const teamAStarters = matchPlayers
     .filter((mp) => mp.team === "A" && mp.role === "starter")
     .map((mp) => ({
@@ -24,6 +31,7 @@ export default async function MatchDetailPage({
       name: mp.player.name,
       photoUrl: mp.player.photoUrl,
       position: mp.position as "GK" | "DEF" | "ATT" | null,
+      goals: goalsByPlayer.get(mp.playerId) ?? 0,
     }));
   const teamBStarters = matchPlayers
     .filter((mp) => mp.team === "B" && mp.role === "starter")
@@ -32,6 +40,7 @@ export default async function MatchDetailPage({
       name: mp.player.name,
       photoUrl: mp.player.photoUrl,
       position: mp.position as "GK" | "DEF" | "ATT" | null,
+      goals: goalsByPlayer.get(mp.playerId) ?? 0,
     }));
 
   const teamASubs = matchPlayers.filter((mp) => mp.team === "A" && mp.role === "substitute");
@@ -101,8 +110,8 @@ export default async function MatchDetailPage({
         teamBPlayers={teamBStarters}
       />
 
-      <TeamExtras teamLabel="Team A" subs={teamASubs} scorers={goalsA} />
-      <TeamExtras teamLabel="Team B" subs={teamBSubs} scorers={goalsB} />
+      <TeamExtras teamLabel={TEAM_A_NAME} subs={teamASubs} scorers={goalsA} />
+      <TeamExtras teamLabel={TEAM_B_NAME} subs={teamBSubs} scorers={goalsB} />
     </div>
   );
 }

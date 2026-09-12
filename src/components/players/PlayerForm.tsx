@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
+import { PhotoCropper } from "@/components/players/PhotoCropper";
 
 export type PlayerFormValues = {
   id?: number;
@@ -25,16 +26,25 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Load into the cropper (zoom/align) first, then upload the cropped result.
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
 
+  async function handleCropped(cropped: File) {
+    setCropSrc(null);
     setUploading(true);
     setError(null);
 
     const formData = new FormData();
-    formData.append("photo", file);
+    formData.append("photo", cropped);
 
     const res = await fetch("/api/uploads/player-photo", {
       method: "POST",
@@ -86,6 +96,7 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
   }
 
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       className="space-y-5 rounded-2xl bg-surface p-5 shadow-sm ring-1 ring-line"
@@ -179,5 +190,13 @@ export function PlayerForm({ initial }: { initial?: PlayerFormValues }) {
         </button>
       </div>
     </form>
+    {cropSrc && (
+      <PhotoCropper
+        imageSrc={cropSrc}
+        onCancel={() => setCropSrc(null)}
+        onCropped={handleCropped}
+      />
+    )}
+    </>
   );
 }

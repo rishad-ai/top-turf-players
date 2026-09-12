@@ -105,6 +105,7 @@ async function insertMatchPlayersAndGoals(tx: TxLike, matchId: number, input: Ma
         playerId: g.playerId,
         team: g.team,
         minute: g.minute ?? null,
+        isOwnGoal: g.isOwnGoal ?? false,
       }))
     );
   }

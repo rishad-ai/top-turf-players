@@ -10,8 +10,9 @@ export type MatchPlayerInput = {
 
 export type GoalInput = {
   playerId: number;
-  team: "A" | "B";
+  team: "A" | "B"; // the team this goal COUNTS FOR (scoreboard side)
   minute?: number | null;
+  isOwnGoal?: boolean; // if true, playerId is on the OPPOSITE team from `team`
 };
 
 export type MatchInput = {
@@ -116,7 +117,12 @@ export function validateMatchInput(input: MatchInput): ValidationResult {
     if (!team) {
       return { ok: false, error: "A goal scorer must be a player who actually played in this match." };
     }
-    if (team !== g.team) {
+    if (g.isOwnGoal) {
+      // Own goal: the scorer is on the opposite team from the side it counts for.
+      if (team === g.team) {
+        return { ok: false, error: "An own goal must be credited to a player from the opposing team." };
+      }
+    } else if (team !== g.team) {
       return { ok: false, error: "A goal's team must match the scoring player's actual team." };
     }
     if (g.minute !== undefined && g.minute !== null) {

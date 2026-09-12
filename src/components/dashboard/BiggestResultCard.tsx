@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { YearlyExtreme } from "@/lib/dashboard";
+import { teamName } from "@/lib/teams";
 
 export function BiggestResultCard({ result, year }: { result: YearlyExtreme | null; year: number }) {
   if (!result) return null;
 
-  const winnerLabel = result.winningTeam === "A" ? "Team A" : "Team B";
-  const loserLabel = result.winningTeam === "A" ? "Team B" : "Team A";
+  const winnerLabel = teamName(result.winningTeam);
+  const loserLabel = teamName(result.winningTeam === "A" ? "B" : "A");
 
   return (
     <section>

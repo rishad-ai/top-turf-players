@@ -106,6 +106,9 @@ export const goals = pgTable("goals", {
     .references(() => players.id, { onDelete: "cascade" }),
   team: text("team", { enum: ["A", "B"] }).notNull(),
   minute: integer("minute"),
+  // Own goal: the scoring player is on the opposite team from `team`. Counts toward
+  // `team`'s score but is NOT counted in the player's personal goal stats.
+  isOwnGoal: boolean("is_own_goal").notNull().default(false),
 });
 
 /**

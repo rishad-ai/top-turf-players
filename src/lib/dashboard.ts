@@ -33,6 +33,9 @@ export type DashboardStats = {
   hotStreakPlayers: DashboardPlayerSummary[];
   coldStreakPlayers: DashboardPlayerSummary[];
   topScorer: DashboardPlayerSummary | null;
+  topScorers: DashboardPlayerSummary[];
+  topScorerThisMonth: { playerId: number; name: string; photoUrl: string | null; goals: number } | null;
+  topScorerThisYear: { playerId: number; name: string; photoUrl: string | null; goals: number } | null;
   topPlayersByWins: DashboardPlayerSummary[];
   biggestResultThisYear: YearlyExtreme | null;
 };
@@ -114,6 +117,7 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
 
   const goalsByPlayer = new Map<number, number>();
   for (const g of allGoals) {
+    if (g.isOwnGoal) continue;
     goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
   }
 
@@ -170,11 +174,40 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
 
   const scorers = summaries.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);
   const topScorer = scorers.length > 0 ? scorers[0] : null;
+  const topScorers = scorers.slice(0, 5); // top 5 for the dashboard, with "view all"
 
   const topPlayersByWins = [...summaries].sort((a, b) => b.wins - a.wins).slice(0, 5);
 
-  // --- Biggest result of the current year ---
+  // --- Top scorer this month and this year (goals within the period) ---
   const currentYear = new Date(today).getFullYear();
+  const currentMonth = today.slice(0, 7); // "YYYY-MM"
+  const nameById = new Map<number, { name: string; photoUrl: string | null }>();
+  for (const p of allPlayers) nameById.set(p.id, { name: p.name, photoUrl: p.photoUrl });
+
+  const monthGoals = new Map<number, number>();
+  const yearGoals = new Map<number, number>();
+  for (const g of allGoals) {
+    if (g.isOwnGoal) continue;
+    const d = matchDateById.get(g.matchId);
+    if (!d) continue;
+    if (d.startsWith(`${currentYear}-`)) yearGoals.set(g.playerId, (yearGoals.get(g.playerId) ?? 0) + 1);
+    if (d.startsWith(`${currentMonth}-`)) monthGoals.set(g.playerId, (monthGoals.get(g.playerId) ?? 0) + 1);
+  }
+
+  function topFromMap(m: Map<number, number>): { playerId: number; name: string; photoUrl: string | null; goals: number } | null {
+    let best: { playerId: number; goals: number } | null = null;
+    for (const [pid, goals] of m) {
+      if (!best || goals > best.goals) best = { playerId: pid, goals };
+    }
+    if (!best) return null;
+    const info = nameById.get(best.playerId);
+    return { playerId: best.playerId, name: info?.name ?? `#${best.playerId}`, photoUrl: info?.photoUrl ?? null, goals: best.goals };
+  }
+
+  const topScorerThisMonth = topFromMap(monthGoals);
+  const topScorerThisYear = topFromMap(yearGoals);
+
+  // --- Biggest result of the current year ---
   let biggestResultThisYear: YearlyExtreme | null = null;
   for (const m of allMatches) {
     if (!m.matchDate.startsWith(`${currentYear}-`)) continue;
@@ -202,6 +235,9 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     hotStreakPlayers,
     coldStreakPlayers,
     topScorer,
+    topScorers,
+    topScorerThisMonth,
+    topScorerThisYear,
     topPlayersByWins,
     biggestResultThisYear,
   };

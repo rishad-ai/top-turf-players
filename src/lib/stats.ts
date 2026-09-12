@@ -40,7 +40,8 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
     .select()
     .from(goals)
     .where(eq(goals.playerId, playerId));
-  const goalCount = goalRows.length;
+  // Own goals don't count toward a player's personal tally (standard football).
+  const goalCount = goalRows.filter((g) => !g.isOwnGoal).length;
 
   const winPercentage = matchesPlayed === 0 ? 0 : Math.round((wins / matchesPlayed) * 1000) / 10;
 
@@ -96,6 +97,7 @@ export async function calculatePlayerMatchHistory(
     .where(eq(goals.playerId, playerId));
   const goalsByMatch = new Map<number, number>();
   for (const g of goalRows) {
+    if (g.isOwnGoal) continue;
     goalsByMatch.set(g.matchId, (goalsByMatch.get(g.matchId) ?? 0) + 1);
   }
 
@@ -162,6 +164,7 @@ export async function calculateLeaderboard(
 
   const goalsByPlayer = new Map<number, number>();
   for (const g of allGoals) {
+    if (g.isOwnGoal) continue;
     goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
   }
 

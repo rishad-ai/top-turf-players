@@ -3,33 +3,38 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera } from "lucide-react";
+import { PhotoCropper } from "./PhotoCropper";
 
 export function ChangeMyPhotoButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Load into the cropper first (zoom/align), then upload the cropped result.
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = ""; // allow re-picking the same file later
+  }
+
+  async function handleCropped(cropped: File) {
+    setCropSrc(null);
     setError(null);
     setBusy(true);
-
     try {
-      // 1. Upload the file, get a URL.
       const formData = new FormData();
-      formData.append("photo", file);
-      const uploadRes = await fetch("/api/uploads/player-photo", {
-        method: "POST",
-        body: formData,
-      });
+      formData.append("photo", cropped);
+      const uploadRes = await fetch("/api/uploads/player-photo", { method: "POST", body: formData });
       if (!uploadRes.ok) {
         const d = await uploadRes.json().catch(() => null);
         throw new Error(d?.error || "Upload failed.");
       }
       const { photoUrl } = await uploadRes.json();
 
-      // 2. Set it as MY photo (server ties it to the session, not to any id we send).
       const setRes = await fetch("/api/member/photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -39,7 +44,6 @@ export function ChangeMyPhotoButton() {
         const d = await setRes.json().catch(() => null);
         throw new Error(d?.error || "Could not update photo.");
       }
-
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -52,7 +56,7 @@ export function ChangeMyPhotoButton() {
     <div>
       <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-pitch px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-pitch-dark">
         <Camera size={15} />
-        {busy ? "Updating…" : "Change my photo"}
+        {busy ? "Updating\u2026" : "Change my photo"}
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
@@ -62,6 +66,13 @@ export function ChangeMyPhotoButton() {
         />
       </label>
       {error && <p className="mt-1 text-xs text-red">{error}</p>}
+      {cropSrc && (
+        <PhotoCropper
+          imageSrc={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onCropped={handleCropped}
+        />
+      )}
     </div>
   );
 }

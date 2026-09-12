@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlayerPicker, type PickablePlayer } from "./PlayerPicker";
 import { GoalEntryList, type GoalEntry, type EligibleScorer } from "./GoalEntryList";
+import { TEAM_A_NAME, TEAM_B_NAME, teamName } from "@/lib/teams";
 import {
   validateMatchInput,
   type MatchInput,
@@ -31,8 +32,8 @@ export type MatchFormInitial = {
   teamBFormation: FormationState;
   teamASubs: SubEntry[];
   teamBSubs: SubEntry[];
-  goalsA: { playerId: number; minute: number | null }[];
-  goalsB: { playerId: number; minute: number | null }[];
+  goalsA: { playerId: number; minute: number | null; isOwnGoal?: boolean }[];
+  goalsB: { playerId: number; minute: number | null; isOwnGoal?: boolean }[];
 };
 
 function todayISO() {
@@ -151,8 +152,8 @@ export function MatchForm({
     ];
 
     const goals: GoalInput[] = [
-      ...goalsA.filter((g) => g.playerId).map((g) => ({ playerId: g.playerId as number, team: "A" as const, minute: g.minute })),
-      ...goalsB.filter((g) => g.playerId).map((g) => ({ playerId: g.playerId as number, team: "B" as const, minute: g.minute })),
+      ...goalsA.filter((g) => g.playerId).map((g) => ({ playerId: g.playerId as number, team: "A" as const, minute: g.minute, isOwnGoal: g.isOwnGoal ?? false })),
+      ...goalsB.filter((g) => g.playerId).map((g) => ({ playerId: g.playerId as number, team: "B" as const, minute: g.minute, isOwnGoal: g.isOwnGoal ?? false })),
     ];
 
     return { matchDate, teamAScore, teamBScore, players: matchPlayers, goals };
@@ -198,7 +199,7 @@ export function MatchForm({
     return (
       <div className="space-y-4">
         <PlayerPicker
-          label={`Team ${team} — Goalkeeper (exactly 1)`}
+          label={`${teamName(team)} — Goalkeeper (exactly 1)`}
           players={allPlayers}
           selectedIds={formation.gk !== null ? [formation.gk] : []}
           onToggle={(id) => toggleGK(team, id)}
@@ -207,7 +208,7 @@ export function MatchForm({
           accentClass={accent}
         />
         <PlayerPicker
-          label={`Team ${team} — Defenders (exactly 3)`}
+          label={`${teamName(team)} — Defenders (exactly 3)`}
           players={allPlayers}
           selectedIds={formation.def}
           onToggle={(id) => toggleDef(team, id)}
@@ -216,7 +217,7 @@ export function MatchForm({
           accentClass={accent}
         />
         <PlayerPicker
-          label={`Team ${team} — Attackers (exactly 3)`}
+          label={`${teamName(team)} — Attackers (exactly 3)`}
           players={allPlayers}
           selectedIds={formation.att}
           onToggle={(id) => toggleAtt(team, id)}
@@ -262,7 +263,7 @@ export function MatchForm({
       <section className="space-y-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
         <div>
           <PlayerPicker
-            label="Team A — substitutes (optional, up to 2)"
+            label={`${TEAM_A_NAME} — substitutes (optional, up to 2)`}
             players={allPlayers}
             selectedIds={teamASubs.map((s) => s.playerId)}
             onToggle={toggleSubA}
@@ -292,7 +293,7 @@ export function MatchForm({
 
         <div>
           <PlayerPicker
-            label="Team B — substitutes (optional, up to 2)"
+            label={`${TEAM_B_NAME} — substitutes (optional, up to 2)`}
             players={allPlayers}
             selectedIds={teamBSubs.map((s) => s.playerId)}
             onToggle={toggleSubB}
@@ -326,7 +327,7 @@ export function MatchForm({
         <p className="mb-2 text-sm font-medium text-ink">Final score</p>
         <div className="flex items-center justify-center gap-4">
           <div className="text-center">
-            <p className="mb-1 text-xs font-medium text-ink-muted">Team A</p>
+            <p className="mb-1 text-xs font-medium text-ink-muted">{TEAM_A_NAME}</p>
             <input
               type="number"
               min={0}
@@ -337,7 +338,7 @@ export function MatchForm({
           </div>
           <span className="font-display text-2xl font-bold text-ink-muted">:</span>
           <div className="text-center">
-            <p className="mb-1 text-xs font-medium text-ink-muted">Team B</p>
+            <p className="mb-1 text-xs font-medium text-ink-muted">{TEAM_B_NAME}</p>
             <input
               type="number"
               min={0}
@@ -353,16 +354,18 @@ export function MatchForm({
       <section className="space-y-4 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
         <GoalEntryList
           team="A"
-          teamLabel="Team A"
+          teamLabel={TEAM_A_NAME}
           eligibleScorers={eligibleScorersA}
+          opposingScorers={eligibleScorersB}
           entries={goalsA}
           onChange={setGoalsA}
           expectedCount={teamAScore}
         />
         <GoalEntryList
           team="B"
-          teamLabel="Team B"
+          teamLabel={TEAM_B_NAME}
           eligibleScorers={eligibleScorersB}
+          opposingScorers={eligibleScorersA}
           entries={goalsB}
           onChange={setGoalsB}
           expectedCount={teamBScore}
@@ -393,7 +396,7 @@ export function MatchForm({
             <p className="mt-1 text-center text-sm text-ink-muted">{matchDate} · 1-3-3</p>
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="mb-1 font-medium text-ink">Team A</p>
+                <p className="mb-1 font-medium text-ink">{TEAM_A_NAME}</p>
                 <ul className="space-y-0.5 text-ink-muted">
                   {teamA.gk !== null && <li>GK: {playersById.get(teamA.gk)?.name}</li>}
                   {teamA.def.map((id) => <li key={id}>DEF: {playersById.get(id)?.name}</li>)}
@@ -402,7 +405,7 @@ export function MatchForm({
                 </ul>
               </div>
               <div>
-                <p className="mb-1 font-medium text-ink">Team B</p>
+                <p className="mb-1 font-medium text-ink">{TEAM_B_NAME}</p>
                 <ul className="space-y-0.5 text-ink-muted">
                   {teamB.gk !== null && <li>GK: {playersById.get(teamB.gk)?.name}</li>}
                   {teamB.def.map((id) => <li key={id}>DEF: {playersById.get(id)?.name}</li>)}
