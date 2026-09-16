@@ -29,6 +29,12 @@ export default async function MatchDetailPage({
   }
 
   type MP = (typeof matchPlayers)[number];
+  const replacedStarterIds = new Set<number>();
+  for (const mp of matchPlayers) {
+    if (mp.role === "substitute" && mp.played && mp.replacedPlayerId) {
+      replacedStarterIds.add(mp.replacedPlayerId);
+    }
+  }
   const toLineup = (mp: MP) => ({
     playerId: mp.playerId,
     name: mp.player.name,
@@ -36,6 +42,8 @@ export default async function MatchDetailPage({
     position: mp.position as "GK" | "DEF" | "ATT" | null,
     goals: goalsByPlayer.get(mp.playerId) ?? 0,
     ownGoals: ownGoalsByPlayer.get(mp.playerId) ?? 0,
+    cameOff: replacedStarterIds.has(mp.playerId),
+    cameOn: mp.role === "substitute" && mp.played && !!mp.replacedPlayerId,
   });
 
   const teamAStarters = matchPlayers.filter((mp) => mp.team === "A" && mp.role === "starter").map(toLineup);

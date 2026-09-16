@@ -13,6 +13,8 @@ type LineupPlayer = {
   position: "GK" | "DEF" | "ATT" | null;
   goals?: number; // normal goals scored
   ownGoals?: number; // own goals scored (shown red, don't count as achievements)
+  cameOff?: boolean; // starter who was substituted off (red ↓)
+  cameOn?: boolean; // substitute who came on (green ↑)
 };
 
 function initials(name: string): string {
@@ -63,13 +65,30 @@ function OwnGoalBoots({ count }: { count: number }) {
   );
 }
 
+function SubArrow({ cameOn, cameOff }: { cameOn?: boolean; cameOff?: boolean }) {
+  if (!cameOn && !cameOff) return null;
+  const up = cameOn;
+  return (
+    <span
+      className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white shadow"
+      style={{ background: up ? "#1E7A46" : "#D14343" }}
+      title={up ? "Came on" : "Substituted off"}
+    >
+      {up ? "\u2191" : "\u2193"}
+    </span>
+  );
+}
+
 function PositionRow({ players }: { players: LineupPlayer[] }) {
   if (players.length === 0) return null;
   return (
     <div className="flex items-start justify-around gap-1">
       {players.map((p) => (
         <div key={p.playerId} className="flex flex-1 flex-col items-center gap-1 text-center">
-          <PlainAvatar name={p.name} photoUrl={p.photoUrl} />
+          <div className="relative">
+            <PlainAvatar name={p.name} photoUrl={p.photoUrl} />
+            <SubArrow cameOn={p.cameOn} cameOff={p.cameOff} />
+          </div>
           <span className="w-full truncate px-0.5 text-[10px] font-semibold leading-tight text-white drop-shadow sm:text-[11px]">
             {p.name}
           </span>
@@ -90,7 +109,10 @@ function SubsRow({ subs }: { subs: LineupPlayer[] }) {
       <div className="flex flex-wrap items-start gap-3">
         {subs.map((p) => (
           <div key={p.playerId} className="flex w-14 flex-col items-center gap-1 text-center">
-            <PlainAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+            <div className="relative">
+              <PlainAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+              <SubArrow cameOn={p.cameOn} cameOff={p.cameOff} />
+            </div>
             <span className="w-full truncate text-[10px] font-semibold leading-tight text-white drop-shadow">
               {p.name}
             </span>

@@ -84,6 +84,10 @@ export const matchPlayers = pgTable(
     // lineup). Substitutes don't have a formation slot, so this is null for them.
     position: text("position", { enum: ["GK", "DEF", "ATT"] }),
     played: boolean("played").notNull().default(true),
+    // For a substitute who came on: the id of the starter they replaced. Null for
+    // starters and for subs who didn't play. Lets the lineup show ↑ (came on) on the
+    // sub and ↓ (came off) on the replaced starter.
+    replacedPlayerId: integer("replaced_player_id"),
     result: text("result", { enum: ["win", "loss", "draw"] }).notNull(),
   },
   (table) => [

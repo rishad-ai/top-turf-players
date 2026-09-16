@@ -13,7 +13,7 @@ import {
   type Position,
 } from "@/lib/matchValidation";
 
-type SubEntry = { playerId: number; played: boolean };
+type SubEntry = { playerId: number; played: boolean; replacedPlayerId?: number | null };
 
 type FormationState = {
   gk: number | null;
@@ -147,8 +147,8 @@ export function MatchForm({
     const matchPlayers: MatchPlayerInput[] = [
       ...formationStarters(teamA, "A"),
       ...formationStarters(teamB, "B"),
-      ...teamASubs.map((s) => ({ playerId: s.playerId, team: "A" as const, role: "substitute" as const, position: null as Position | null, played: s.played })),
-      ...teamBSubs.map((s) => ({ playerId: s.playerId, team: "B" as const, role: "substitute" as const, position: null as Position | null, played: s.played })),
+      ...teamASubs.map((s) => ({ playerId: s.playerId, team: "A" as const, role: "substitute" as const, position: null as Position | null, played: s.played, replacedPlayerId: s.replacedPlayerId ?? null })),
+      ...teamBSubs.map((s) => ({ playerId: s.playerId, team: "B" as const, role: "substitute" as const, position: null as Position | null, played: s.played, replacedPlayerId: s.replacedPlayerId ?? null })),
     ];
 
     const goals: GoalInput[] = [
@@ -272,20 +272,47 @@ export function MatchForm({
             accentClass="border-pitch bg-pitch-tint"
           />
           {teamASubs.length > 0 && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-2 space-y-2">
               {teamASubs.map((s) => (
-                <label key={s.playerId} className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={s.played}
-                    onChange={(e) =>
-                      setTeamASubs((cur) =>
-                        cur.map((x) => (x.playerId === s.playerId ? { ...x, played: e.target.checked } : x))
-                      )
-                    }
-                  />
-                  {playersById.get(s.playerId)?.name} played the match
-                </label>
+                <div key={s.playerId} className="rounded-lg border border-line bg-bg p-2">
+                  <label className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={s.played}
+                      onChange={(e) =>
+                        setTeamASubs((cur) =>
+                          cur.map((x) => (x.playerId === s.playerId ? { ...x, played: e.target.checked } : x))
+                        )
+                      }
+                    />
+                    {playersById.get(s.playerId)?.name} played the match
+                  </label>
+                  {s.played && (
+                    <div className="mt-1.5 flex items-center gap-2 pl-6 text-xs text-ink-muted">
+                      <span>came on for</span>
+                      <select
+                        value={s.replacedPlayerId ?? ""}
+                        onChange={(e) =>
+                          setTeamASubs((cur) =>
+                            cur.map((x) =>
+                              x.playerId === s.playerId
+                                ? { ...x, replacedPlayerId: Number(e.target.value) || null }
+                                : x
+                            )
+                          )
+                        }
+                        className="rounded-lg border border-line bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-pitch"
+                      >
+                        <option value="">(optional) starter…</option>
+                        {allFormationIds(teamA).map((id) => (
+                          <option key={id} value={id}>
+                            {playersById.get(id)?.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -302,20 +329,47 @@ export function MatchForm({
             accentClass="border-amber bg-amber-tint"
           />
           {teamBSubs.length > 0 && (
-            <div className="mt-2 space-y-1">
+            <div className="mt-2 space-y-2">
               {teamBSubs.map((s) => (
-                <label key={s.playerId} className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    checked={s.played}
-                    onChange={(e) =>
-                      setTeamBSubs((cur) =>
-                        cur.map((x) => (x.playerId === s.playerId ? { ...x, played: e.target.checked } : x))
-                      )
-                    }
-                  />
-                  {playersById.get(s.playerId)?.name} played the match
-                </label>
+                <div key={s.playerId} className="rounded-lg border border-line bg-bg p-2">
+                  <label className="flex items-center gap-2 text-sm text-ink">
+                    <input
+                      type="checkbox"
+                      checked={s.played}
+                      onChange={(e) =>
+                        setTeamBSubs((cur) =>
+                          cur.map((x) => (x.playerId === s.playerId ? { ...x, played: e.target.checked } : x))
+                        )
+                      }
+                    />
+                    {playersById.get(s.playerId)?.name} played the match
+                  </label>
+                  {s.played && (
+                    <div className="mt-1.5 flex items-center gap-2 pl-6 text-xs text-ink-muted">
+                      <span>came on for</span>
+                      <select
+                        value={s.replacedPlayerId ?? ""}
+                        onChange={(e) =>
+                          setTeamBSubs((cur) =>
+                            cur.map((x) =>
+                              x.playerId === s.playerId
+                                ? { ...x, replacedPlayerId: Number(e.target.value) || null }
+                                : x
+                            )
+                          )
+                        }
+                        className="rounded-lg border border-line bg-surface px-2 py-1 text-xs text-ink outline-none focus:border-pitch"
+                      >
+                        <option value="">(optional) starter…</option>
+                        {allFormationIds(teamB).map((id) => (
+                          <option key={id} value={id}>
+                            {playersById.get(id)?.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}

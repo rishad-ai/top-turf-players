@@ -32,10 +32,10 @@ export default async function EditMatchPage({
   const teamBFormation = buildFormation("B");
   const teamASubs = detail.matchPlayers
     .filter((mp) => mp.team === "A" && mp.role === "substitute")
-    .map((mp) => ({ playerId: mp.playerId, played: mp.played }));
+    .map((mp) => ({ playerId: mp.playerId, played: mp.played, replacedPlayerId: mp.replacedPlayerId }));
   const teamBSubs = detail.matchPlayers
     .filter((mp) => mp.team === "B" && mp.role === "substitute")
-    .map((mp) => ({ playerId: mp.playerId, played: mp.played }));
+    .map((mp) => ({ playerId: mp.playerId, played: mp.played, replacedPlayerId: mp.replacedPlayerId }));
 
   const goalsA = detail.goals
     .filter((g) => g.team === "A")

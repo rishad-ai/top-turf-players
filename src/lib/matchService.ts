@@ -92,6 +92,7 @@ async function insertMatchPlayersAndGoals(tx: TxLike, matchId: number, input: Ma
     role: p.role,
     position: p.role === "starter" ? (p.position ?? null) : null,
     played: p.role === "starter" ? true : p.played,
+    replacedPlayerId: p.role === "substitute" && p.played ? (p.replacedPlayerId ?? null) : null,
     result: computeResult(p.team, input.teamAScore, input.teamBScore),
   }));
   if (rows.length > 0) {

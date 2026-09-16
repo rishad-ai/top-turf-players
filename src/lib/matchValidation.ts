@@ -6,6 +6,7 @@ export type MatchPlayerInput = {
   role: "starter" | "substitute";
   position?: Position | null; // required for starters (1-3-3 formation), null for subs
   played: boolean; // for substitutes: whether they actually played
+  replacedPlayerId?: number | null; // for a sub who played: the starter they replaced
 };
 
 export type GoalInput = {
@@ -100,6 +101,24 @@ export function validateMatchInput(input: MatchInput): ValidationResult {
 
   if (allPlayerIds.length === 0) {
     return { ok: false, error: "At least the starters must be selected." };
+  }
+
+  // --- Substitution links: a sub who played may name the starter they replaced ---
+  const starterIdsByTeam: Record<"A" | "B", Set<number>> = {
+    A: new Set(teamAStarters.map((p) => p.playerId)),
+    B: new Set(teamBStarters.map((p) => p.playerId)),
+  };
+  const usedReplacements = new Set<number>();
+  for (const p of input.players) {
+    if (p.role !== "substitute" || !p.played) continue;
+    if (p.replacedPlayerId === undefined || p.replacedPlayerId === null) continue; // optional
+    if (!starterIdsByTeam[p.team].has(p.replacedPlayerId)) {
+      return { ok: false, error: "A substitute can only replace a starter from their own team." };
+    }
+    if (usedReplacements.has(p.replacedPlayerId)) {
+      return { ok: false, error: "Two substitutes can't replace the same starter." };
+    }
+    usedReplacements.add(p.replacedPlayerId);
   }
 
   // --- Goal scorers must be players who actually played, on the correct team ---

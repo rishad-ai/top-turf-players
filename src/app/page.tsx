@@ -31,6 +31,15 @@ export default async function HomePage() {
     }
   }
 
+  const rows = stats.match?.matchPlayers ?? [];
+  // Starters who were replaced (came off) = the replacedPlayerId of any played sub.
+  const replacedStarterIds = new Set<number>();
+  for (const mp of rows) {
+    if (mp.role === "substitute" && mp.played && mp.replacedPlayerId) {
+      replacedStarterIds.add(mp.replacedPlayerId);
+    }
+  }
+
   type MP = NonNullable<typeof stats.match>["matchPlayers"][number];
   const toLineup = (mp: MP) => ({
     playerId: mp.playerId,
@@ -39,9 +48,10 @@ export default async function HomePage() {
     position: mp.position as "GK" | "DEF" | "ATT" | null,
     goals: goalsByPlayer.get(mp.playerId) ?? 0,
     ownGoals: ownGoalsByPlayer.get(mp.playerId) ?? 0,
+    cameOff: replacedStarterIds.has(mp.playerId),
+    cameOn: mp.role === "substitute" && mp.played && !!mp.replacedPlayerId,
   });
 
-  const rows = stats.match?.matchPlayers ?? [];
   const teamAStarters = rows.filter((mp) => mp.team === "A" && mp.role === "starter").map(toLineup);
   const teamBStarters = rows.filter((mp) => mp.team === "B" && mp.role === "starter").map(toLineup);
   // Only substitutes who actually played are shown (and they're already in stats).
