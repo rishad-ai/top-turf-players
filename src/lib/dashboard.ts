@@ -165,11 +165,11 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
   }
 
   const hotStreakPlayers = summaries
-    .filter((s) => s.winningStreak >= 3)
+    .filter((s) => s.matchesPlayed > 0 && s.winningStreak >= 3)
     .sort((a, b) => b.winningStreak - a.winningStreak);
 
   const coldStreakPlayers = summaries
-    .filter((s) => s.losingStreak >= 3)
+    .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3)
     .sort((a, b) => b.losingStreak - a.losingStreak);
 
   const scorers = summaries.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);

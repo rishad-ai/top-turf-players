@@ -11,7 +11,8 @@ type LineupPlayer = {
   name: string;
   photoUrl: string | null;
   position: "GK" | "DEF" | "ATT" | null;
-  goals?: number;
+  goals?: number; // normal goals scored
+  ownGoals?: number; // own goals scored (shown red, don't count as achievements)
 };
 
 function initials(name: string): string {
@@ -52,6 +53,16 @@ function GoalBoots({ count }: { count: number }) {
   );
 }
 
+// Own goals shown in red so they read as "put into own net", not an achievement.
+function OwnGoalBoots({ count }: { count: number }) {
+  if (!count || count < 1) return null;
+  return (
+    <span className="text-[10px] leading-none text-red-400" title={`${count} own goal${count === 1 ? "" : "s"}`} style={{ color: "#F87171" }}>
+      {"\u26bd".repeat(count)} <span style={{ fontSize: "8px" }}>(OG)</span>
+    </span>
+  );
+}
+
 function PositionRow({ players }: { players: LineupPlayer[] }) {
   if (players.length === 0) return null;
   return (
@@ -63,8 +74,31 @@ function PositionRow({ players }: { players: LineupPlayer[] }) {
             {p.name}
           </span>
           <GoalBoots count={p.goals ?? 0} />
+          <OwnGoalBoots count={p.ownGoals ?? 0} />
         </div>
       ))}
+    </div>
+  );
+}
+
+// Substitutes who played, shown as a labelled row below the formation.
+function SubsRow({ subs }: { subs: LineupPlayer[] }) {
+  if (subs.length === 0) return null;
+  return (
+    <div className="mt-3 border-t border-white/15 pt-2">
+      <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-white/50">Substitutes</p>
+      <div className="flex flex-wrap items-start gap-3">
+        {subs.map((p) => (
+          <div key={p.playerId} className="flex w-14 flex-col items-center gap-1 text-center">
+            <PlainAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+            <span className="w-full truncate text-[10px] font-semibold leading-tight text-white drop-shadow">
+              {p.name}
+            </span>
+            <GoalBoots count={p.goals ?? 0} />
+            <OwnGoalBoots count={p.ownGoals ?? 0} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -73,11 +107,13 @@ function TeamHalf({
   teamName,
   score,
   players,
+  subs = [],
   mirror = false,
 }: {
   teamName: string;
   score: number;
   players: LineupPlayer[];
+  subs?: LineupPlayer[];
   mirror?: boolean;
 }) {
   const att = players.filter((p) => p.position === "ATT");
@@ -105,6 +141,7 @@ function TeamHalf({
           <PositionRow players={unassigned} />
         </div>
       )}
+      <SubsRow subs={subs} />
     </div>
   );
 }
@@ -116,6 +153,8 @@ export function DashboardMatchCard({
   teamBScore,
   teamAPlayers,
   teamBPlayers,
+  teamASubs = [],
+  teamBSubs = [],
 }: {
   matchDate: string;
   label: string;
@@ -123,6 +162,8 @@ export function DashboardMatchCard({
   teamBScore: number;
   teamAPlayers: LineupPlayer[];
   teamBPlayers: LineupPlayer[];
+  teamASubs?: LineupPlayer[];
+  teamBSubs?: LineupPlayer[];
 }) {
   const captureRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
@@ -191,14 +232,14 @@ export function DashboardMatchCard({
         <div className="relative mx-3 mb-3 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #1E7A46 0%, #145C34 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 bottom-0 h-px bg-white/20" />
           <div className="px-3 pb-2 pt-3">
-            <TeamHalf teamName={TEAM_A_NAME} score={teamAScore} players={teamAPlayers} />
+            <TeamHalf teamName={TEAM_A_NAME} score={teamAScore} players={teamAPlayers} subs={teamASubs} />
           </div>
         </div>
 
         <div className="relative mx-3 mb-4 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #B8862E 0%, #8C6620 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/20" />
           <div className="px-3 pb-2 pt-3">
-            <TeamHalf teamName={TEAM_B_NAME} score={teamBScore} players={teamBPlayers} mirror={true} />
+            <TeamHalf teamName={TEAM_B_NAME} score={teamBScore} players={teamBPlayers} subs={teamBSubs} mirror={true} />
           </div>
         </div>
       </div>

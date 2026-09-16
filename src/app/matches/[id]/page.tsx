@@ -19,30 +19,32 @@ export default async function MatchDetailPage({
   const { match, matchPlayers, goals } = detail;
 
   const goalsByPlayer = new Map<number, number>();
+  const ownGoalsByPlayer = new Map<number, number>();
   for (const g of goals) {
-    if (g.isOwnGoal) continue;
-    goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+    if (g.isOwnGoal) {
+      ownGoalsByPlayer.set(g.playerId, (ownGoalsByPlayer.get(g.playerId) ?? 0) + 1);
+    } else {
+      goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+    }
   }
 
-  const teamAStarters = matchPlayers
-    .filter((mp) => mp.team === "A" && mp.role === "starter")
-    .map((mp) => ({
-      playerId: mp.playerId,
-      name: mp.player.name,
-      photoUrl: mp.player.photoUrl,
-      position: mp.position as "GK" | "DEF" | "ATT" | null,
-      goals: goalsByPlayer.get(mp.playerId) ?? 0,
-    }));
-  const teamBStarters = matchPlayers
-    .filter((mp) => mp.team === "B" && mp.role === "starter")
-    .map((mp) => ({
-      playerId: mp.playerId,
-      name: mp.player.name,
-      photoUrl: mp.player.photoUrl,
-      position: mp.position as "GK" | "DEF" | "ATT" | null,
-      goals: goalsByPlayer.get(mp.playerId) ?? 0,
-    }));
+  type MP = (typeof matchPlayers)[number];
+  const toLineup = (mp: MP) => ({
+    playerId: mp.playerId,
+    name: mp.player.name,
+    photoUrl: mp.player.photoUrl,
+    position: mp.position as "GK" | "DEF" | "ATT" | null,
+    goals: goalsByPlayer.get(mp.playerId) ?? 0,
+    ownGoals: ownGoalsByPlayer.get(mp.playerId) ?? 0,
+  });
 
+  const teamAStarters = matchPlayers.filter((mp) => mp.team === "A" && mp.role === "starter").map(toLineup);
+  const teamBStarters = matchPlayers.filter((mp) => mp.team === "B" && mp.role === "starter").map(toLineup);
+  // Subs who played, shown in the lineup card.
+  const teamASubsLineup = matchPlayers.filter((mp) => mp.team === "A" && mp.role === "substitute" && mp.played).map(toLineup);
+  const teamBSubsLineup = matchPlayers.filter((mp) => mp.team === "B" && mp.role === "substitute" && mp.played).map(toLineup);
+
+  // Full sub lists (incl. did-not-play) for the text section below.
   const teamASubs = matchPlayers.filter((mp) => mp.team === "A" && mp.role === "substitute");
   const teamBSubs = matchPlayers.filter((mp) => mp.team === "B" && mp.role === "substitute");
 
@@ -108,6 +110,8 @@ export default async function MatchDetailPage({
         teamBScore={match.teamBScore}
         teamAPlayers={teamAStarters}
         teamBPlayers={teamBStarters}
+        teamASubs={teamASubsLineup}
+        teamBSubs={teamBSubsLineup}
       />
 
       <TeamExtras teamLabel={TEAM_A_NAME} subs={teamASubs} scorers={goalsA} />

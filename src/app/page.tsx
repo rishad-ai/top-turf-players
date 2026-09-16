@@ -22,29 +22,31 @@ export default async function HomePage() {
 
   // Goals scored per player in the shown match, for the boot icons.
   const goalsByPlayer = new Map<number, number>();
+  const ownGoalsByPlayer = new Map<number, number>();
   for (const g of stats.match?.goals ?? []) {
-    if (g.isOwnGoal) continue;
-    goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+    if (g.isOwnGoal) {
+      ownGoalsByPlayer.set(g.playerId, (ownGoalsByPlayer.get(g.playerId) ?? 0) + 1);
+    } else {
+      goalsByPlayer.set(g.playerId, (goalsByPlayer.get(g.playerId) ?? 0) + 1);
+    }
   }
 
-  const teamAStarters = stats.match?.matchPlayers
-    .filter((mp) => mp.team === "A" && mp.role === "starter")
-    .map((mp) => ({
-      playerId: mp.playerId,
-      name: mp.player.name,
-      photoUrl: mp.player.photoUrl,
-      position: mp.position as "GK" | "DEF" | "ATT" | null,
-      goals: goalsByPlayer.get(mp.playerId) ?? 0,
-    })) ?? [];
-  const teamBStarters = stats.match?.matchPlayers
-    .filter((mp) => mp.team === "B" && mp.role === "starter")
-    .map((mp) => ({
-      playerId: mp.playerId,
-      name: mp.player.name,
-      photoUrl: mp.player.photoUrl,
-      position: mp.position as "GK" | "DEF" | "ATT" | null,
-      goals: goalsByPlayer.get(mp.playerId) ?? 0,
-    })) ?? [];
+  type MP = NonNullable<typeof stats.match>["matchPlayers"][number];
+  const toLineup = (mp: MP) => ({
+    playerId: mp.playerId,
+    name: mp.player.name,
+    photoUrl: mp.player.photoUrl,
+    position: mp.position as "GK" | "DEF" | "ATT" | null,
+    goals: goalsByPlayer.get(mp.playerId) ?? 0,
+    ownGoals: ownGoalsByPlayer.get(mp.playerId) ?? 0,
+  });
+
+  const rows = stats.match?.matchPlayers ?? [];
+  const teamAStarters = rows.filter((mp) => mp.team === "A" && mp.role === "starter").map(toLineup);
+  const teamBStarters = rows.filter((mp) => mp.team === "B" && mp.role === "starter").map(toLineup);
+  // Only substitutes who actually played are shown (and they're already in stats).
+  const teamASubs = rows.filter((mp) => mp.team === "A" && mp.role === "substitute" && mp.played).map(toLineup);
+  const teamBSubs = rows.filter((mp) => mp.team === "B" && mp.role === "substitute" && mp.played).map(toLineup);
 
   return (
     <div className="space-y-6">
@@ -59,6 +61,8 @@ export default async function HomePage() {
                 teamBScore={stats.match.match.teamBScore}
                 teamAPlayers={teamAStarters}
                 teamBPlayers={teamBStarters}
+                teamASubs={teamASubs}
+                teamBSubs={teamBSubs}
               />
               <WinnersStrip winners={stats.winners} isDraw={stats.isDraw} />
             </>

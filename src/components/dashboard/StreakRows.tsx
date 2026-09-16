@@ -52,7 +52,7 @@ export function ColdStreaksRow({ players }: { players: DashboardPlayerSummary[] 
   if (players.length === 0) return null;
   return (
     <section>
-      <p className="mb-2 font-display text-base font-semibold text-ink">🔻 Cold streaks</p>
+      <p className="mb-2 font-display text-base font-semibold text-ink">🔻 Losing streaks</p>
       <div className="flex gap-3 overflow-x-auto pb-1">
         {players.map((p) => (
           <StreakCard
