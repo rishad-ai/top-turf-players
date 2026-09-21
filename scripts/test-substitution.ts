@@ -1,3 +1,4 @@
+import { assertSafeTestDatabase } from "./_guard";
 import { db, pool } from "../src/db";
 import { players } from "../src/db/schema";
 import { createMatch, getMatchDetail } from "../src/lib/matchService";
@@ -8,6 +9,8 @@ function assert(c: boolean, m: string){ if(!c) throw new Error("FAIL: "+m); cons
 function wp(ids:number[],t:"A"|"B"){const p:("GK"|"DEF"|"ATT")[]=["GK","DEF","DEF","DEF","ATT","ATT","ATT"];return ids.map((id,i)=>({playerId:id,team:t,role:"starter" as const,position:p[i]??"ATT" as const,played:true}));}
 
 async function main(){
+  assertSafeTestDatabase();
+
   await pool.query("TRUNCATE TABLE goals, match_players, matches, players RESTART IDENTITY CASCADE;");
   const ins = await db.insert(players).values(Array.from({length:16},(_,i)=>({name:"P"+(i+1),playerType:"regular" as const}))).returning();
   const ids = ins.map(p=>p.id); const A=ids.slice(0,7), B=ids.slice(7,14);

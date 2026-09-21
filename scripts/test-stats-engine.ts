@@ -1,3 +1,4 @@
+import { assertSafeTestDatabase } from "./_guard";
 import { db, pool } from "../src/db";
 import { players } from "../src/db/schema";
 import { createMatch } from "../src/lib/matchService";
@@ -26,6 +27,8 @@ async function resetTables() {
 }
 
 async function main() {
+  assertSafeTestDatabase();
+
   await resetTables();
 
   const names = Array.from({ length: 16 }, (_, i) => `Player ${i + 1}`);

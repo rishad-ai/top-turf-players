@@ -1,3 +1,4 @@
+import { assertSafeTestDatabase } from "./_guard";
 import { db, pool } from "../src/db";
 import { players } from "../src/db/schema";
 import { createMatch, getMatchDetail } from "../src/lib/matchService";
@@ -21,6 +22,8 @@ function withPositions(ids: number[], team: "A" | "B") {
 }
 
 async function main() {
+  assertSafeTestDatabase();
+
   await pool.query("TRUNCATE TABLE goals, match_players, matches, players RESTART IDENTITY CASCADE;");
 
   const inserted = await db

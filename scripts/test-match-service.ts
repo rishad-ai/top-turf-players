@@ -1,3 +1,4 @@
+import { assertSafeTestDatabase } from "./_guard";
 import { db, pool } from "../src/db";
 import { players, matches, matchPlayers, goals } from "../src/db/schema";
 import { eq } from "drizzle-orm";
@@ -33,6 +34,8 @@ async function resetTables() {
 }
 
 async function main() {
+  assertSafeTestDatabase();
+
   await resetTables();
 
   // Create 16 players: 14 starters (7v7) + 2 subs, plus one irregular
