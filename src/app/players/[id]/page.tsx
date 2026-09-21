@@ -81,9 +81,11 @@ export default async function PlayerProfilePage({
             <StatBlock label="Win %" value={`${stats.winPercentage}%`} />
           </div>
 
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line sm:grid-cols-3 lg:grid-cols-6">
             <StatBlock label="Current win streak" value={streaks.winningStreak} />
             <StatBlock label="Longest win streak" value={streaks.longestWinningStreak} />
+            <StatBlock label="Current unbeaten run" value={streaks.undefeatedStreak} />
+            <StatBlock label="Longest unbeaten run" value={streaks.longestUndefeatedStreak} />
             <StatBlock label="Current losing streak" value={streaks.losingStreak} />
             <StatBlock label="Longest losing streak" value={streaks.longestLosingStreak} />
           </div>

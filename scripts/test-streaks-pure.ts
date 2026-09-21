@@ -5,6 +5,8 @@ import {
   computeRegularLongestLosingStreakFromMap,
   computeIrregularLosingStreakFromSequence,
   computeIrregularLongestLosingStreakFromSequence,
+  computeUndefeatedStreakFromSequence,
+  computeLongestUndefeatedStreakFromSequence,
 } from "../src/lib/streaks";
 
 function assert(cond: boolean, msg: string) {
@@ -30,6 +32,35 @@ assert(
   "longest winning streak finds the 3-run in the middle of history"
 );
 assert(computeLongestWinningStreakFromSequence([]) === 0, "no matches = longest winning streak 0");
+
+// ===================== UNDEFEATED STREAK =====================
+// Unbeaten = consecutive played matches without a LOSS. WIN and DRAW both extend it;
+// only a LOSS breaks it. Absences are skipped (not in the played sequence), matching
+// the winning-streak handling, for regular and irregular players alike. Sequence passed
+// in for the current run is played-matches-only, most-recent-first.
+
+assert(computeUndefeatedStreakFromSequence(["win", "win", "win"]) === 3, "undefeated: WIN-WIN-WIN = 3");
+assert(computeUndefeatedStreakFromSequence(["draw", "win", "win"]) === 3, "undefeated: WIN-WIN-DRAW (desc) = 3 (draw extends)");
+assert(computeUndefeatedStreakFromSequence(["draw", "draw", "draw"]) === 3, "undefeated: three draws = 3");
+assert(computeUndefeatedStreakFromSequence(["loss", "win", "win"]) === 0, "undefeated: most recent LOSS = 0");
+assert(computeUndefeatedStreakFromSequence(["draw", "loss", "win"]) === 1, "undefeated: DRAW then a LOSS before it = 1");
+assert(computeUndefeatedStreakFromSequence(["win", "draw", "loss", "win", "win"]) === 2, "undefeated: WIN,DRAW then LOSS stops = 2");
+assert(computeUndefeatedStreakFromSequence([]) === 0, "undefeated: no matches played = 0");
+
+// Longest undefeated run across ascending history
+assert(
+  computeLongestUndefeatedStreakFromSequence(["win", "draw", "win", "loss", "win", "win"]) === 3,
+  "longest undefeated: the WIN-DRAW-WIN run of 3 beats the trailing 2-run"
+);
+assert(
+  computeLongestUndefeatedStreakFromSequence(["loss", "loss"]) === 0,
+  "longest undefeated: all losses = 0"
+);
+assert(
+  computeLongestUndefeatedStreakFromSequence(["draw", "win", "draw", "win", "draw"]) === 5,
+  "longest undefeated: unbroken wins+draws = full length 5"
+);
+assert(computeLongestUndefeatedStreakFromSequence([]) === 0, "longest undefeated: no matches = 0");
 
 // ===================== REGULAR PLAYER LOSING STREAK =====================
 // Example 1: Sun LOSS, Mon ABSENT, Tue ABSENT, Wed DRAW, Thu ABSENT, Fri LOSS -> 6 days

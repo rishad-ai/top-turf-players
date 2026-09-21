@@ -49,6 +49,8 @@ export function computeStreaksFromData(
 
   const winningStreak = computeWinningStreakFromSequence(seqDesc);
   const longestWinningStreak = computeLongestWinningStreakFromSequence(seqAsc);
+  const undefeatedStreak = computeUndefeatedStreakFromSequence(seqDesc);
+  const longestUndefeatedStreak = computeLongestUndefeatedStreakFromSequence(seqAsc);
 
   let losingStreak = 0;
   let longestLosingStreak = 0;
@@ -64,7 +66,14 @@ export function computeStreaksFromData(
     longestLosingStreak = computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, systemLatest);
   }
 
-  return { winningStreak, longestWinningStreak, losingStreak, longestLosingStreak };
+  return {
+    winningStreak,
+    longestWinningStreak,
+    undefeatedStreak,
+    longestUndefeatedStreak,
+    losingStreak,
+    longestLosingStreak,
+  };
 }
 
 // ---- Data access ----
@@ -139,6 +148,35 @@ export function computeLongestWinningStreakFromSequence(resultsAsc: Result[]): n
       max = Math.max(max, current);
     } else {
       current = 0;
+    }
+  }
+  return max;
+}
+
+/** Current undefeated streak: consecutive matches without a loss, counting back from
+ * the most recent played match. Both WIN and DRAW extend it; only a LOSS breaks it.
+ * Absences are not part of the played-match sequence, so they neither break nor extend
+ * it (mirrors the winning-streak absence handling, for regular and irregular alike). */
+export function computeUndefeatedStreakFromSequence(resultsDesc: Result[]): number {
+  let streak = 0;
+  for (const r of resultsDesc) {
+    if (r === "loss") break;
+    streak++;
+  }
+  return streak;
+}
+
+/** Longest undefeated streak ever, from chronologically ascending played-match results.
+ * A run of consecutive non-loss results (wins and draws); a loss resets it. */
+export function computeLongestUndefeatedStreakFromSequence(resultsAsc: Result[]): number {
+  let current = 0;
+  let max = 0;
+  for (const r of resultsAsc) {
+    if (r === "loss") {
+      current = 0;
+    } else {
+      current++;
+      max = Math.max(max, current);
     }
   }
   return max;
@@ -222,6 +260,8 @@ export function computeIrregularLongestLosingStreakFromSequence(resultsAsc: Resu
 export type StreakSummary = {
   winningStreak: number;
   longestWinningStreak: number;
+  undefeatedStreak: number;
+  longestUndefeatedStreak: number;
   losingStreak: number;
   longestLosingStreak: number;
 };
@@ -229,6 +269,16 @@ export type StreakSummary = {
 export async function calculateWinningStreak(playerId: number): Promise<number> {
   const sequence = await getPlayerResultsSequence(playerId);
   return computeWinningStreakFromSequence([...sequence].reverse());
+}
+
+export async function calculateUndefeatedStreak(playerId: number): Promise<number> {
+  const sequence = await getPlayerResultsSequence(playerId);
+  return computeUndefeatedStreakFromSequence([...sequence].reverse());
+}
+
+export async function calculateLongestUndefeatedStreak(playerId: number): Promise<number> {
+  const sequence = await getPlayerResultsSequence(playerId);
+  return computeLongestUndefeatedStreakFromSequence(sequence);
 }
 
 export async function calculateLongestWinningStreak(playerId: number): Promise<number> {
@@ -276,11 +326,27 @@ export async function calculateLongestLosingStreak(playerId: number): Promise<nu
 }
 
 export async function calculatePlayerStreaks(playerId: number): Promise<StreakSummary> {
-  const [winningStreak, longestWinningStreak, losingStreak, longestLosingStreak] = await Promise.all([
+  const [
+    winningStreak,
+    longestWinningStreak,
+    undefeatedStreak,
+    longestUndefeatedStreak,
+    losingStreak,
+    longestLosingStreak,
+  ] = await Promise.all([
     calculateWinningStreak(playerId),
     calculateLongestWinningStreak(playerId),
+    calculateUndefeatedStreak(playerId),
+    calculateLongestUndefeatedStreak(playerId),
     calculateLosingStreak(playerId),
     calculateLongestLosingStreak(playerId),
   ]);
-  return { winningStreak, longestWinningStreak, losingStreak, longestLosingStreak };
+  return {
+    winningStreak,
+    longestWinningStreak,
+    undefeatedStreak,
+    longestUndefeatedStreak,
+    losingStreak,
+    longestLosingStreak,
+  };
 }

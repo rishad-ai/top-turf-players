@@ -6,6 +6,8 @@ import {
   calculateLongestWinningStreak,
   calculateLosingStreak,
   calculateLongestLosingStreak,
+  calculateUndefeatedStreak,
+  calculateLongestUndefeatedStreak,
 } from "../src/lib/streaks";
 import type { MatchInput } from "../src/lib/matchValidation";
 
@@ -89,6 +91,26 @@ async function main() {
 
   const longestB1 = await calculateLongestWinningStreak(teamB[1]);
   assert(longestB1 === 4, `teamB[1] longest winning streak also 4 (got ${longestB1})`);
+
+  // ===================== UNDEFEATED STREAK (wins + draws, loss breaks, absence skipped) =====================
+  await resetMatches();
+  // teamA[1] plays every day. Results for A: WIN, DRAW, WIN, then LOSS breaks it.
+  await createMatch(match("2026-01-10", 3, 0)); // A win
+  await createMatch(match("2026-01-11", 1, 1)); // draw
+  await createMatch(match("2026-01-12", 2, 0)); // A win  -> unbeaten run of 3 so far
+  const undefeatedMid = await calculateUndefeatedStreak(teamA[1]);
+  assert(undefeatedMid === 3, `undefeated (DB): WIN,DRAW,WIN = 3 unbeaten (got ${undefeatedMid})`);
+  await createMatch(match("2026-01-13", 0, 4)); // A loss -> breaks
+  const undefeatedAfterLoss = await calculateUndefeatedStreak(teamA[1]);
+  assert(undefeatedAfterLoss === 0, `undefeated (DB): a loss resets current unbeaten run to 0 (got ${undefeatedAfterLoss})`);
+  const longestUndefeated = await calculateLongestUndefeatedStreak(teamA[1]);
+  assert(longestUndefeated === 3, `undefeated (DB): longest unbeaten run remembers the earlier 3 (got ${longestUndefeated})`);
+  // Absence should be skipped, not break the run: teamA[1] sits out 01-14 (spare fills), then draws 01-15.
+  const day14TeamA = [teamA[0], spare, ...teamA.slice(2)];
+  await createMatch(match("2026-01-14", 1, 1, day14TeamA, teamB)); // teamA[1] absent
+  await createMatch(match("2026-01-15", 2, 2)); // teamA[1] plays, draw
+  const undefeatedAfterAbsence = await calculateUndefeatedStreak(teamA[1]);
+  assert(undefeatedAfterAbsence === 1, `undefeated (DB): played-match after loss is a DRAW (absence 01-14 skipped) = 1 (got ${undefeatedAfterAbsence})`);
 
   // ===================== REGULAR PLAYER LOSING STREAK (spec's exact example) =====================
   await resetMatches();

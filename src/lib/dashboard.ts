@@ -31,6 +31,7 @@ export type DashboardStats = {
   winners: { playerId: number; name: string; photoUrl: string | null }[];
   isDraw: boolean;
   hotStreakPlayers: DashboardPlayerSummary[];
+  undefeatedStreakPlayers: DashboardPlayerSummary[];
   coldStreakPlayers: DashboardPlayerSummary[];
   topScorer: DashboardPlayerSummary | null;
   topScorers: DashboardPlayerSummary[];
@@ -168,6 +169,12 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     .filter((s) => s.matchesPlayed > 0 && s.winningStreak >= 3)
     .sort((a, b) => b.winningStreak - a.winningStreak);
 
+  // Undefeated streak (wins + draws, only a loss breaks it). Shown as its own section.
+  // A pure winning run counts as undefeated too, so this can overlap with hot streaks.
+  const undefeatedStreakPlayers = summaries
+    .filter((s) => s.matchesPlayed > 0 && s.undefeatedStreak >= 3)
+    .sort((a, b) => b.undefeatedStreak - a.undefeatedStreak);
+
   const coldStreakPlayers = summaries
     .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3)
     .sort((a, b) => b.losingStreak - a.losingStreak);
@@ -233,6 +240,7 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     winners,
     isDraw,
     hotStreakPlayers,
+    undefeatedStreakPlayers,
     coldStreakPlayers,
     topScorer,
     topScorers,

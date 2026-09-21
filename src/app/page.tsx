@@ -3,7 +3,7 @@ import { getSession, getMemberSession } from "@/lib/auth";
 import { DashboardMatchCard, DashboardNoMatchCard } from "@/components/dashboard/DashboardMatchCard";
 import { WinnersStrip } from "@/components/dashboard/WinnersStrip";
 import { BiggestResultCard } from "@/components/dashboard/BiggestResultCard";
-import { HotStreaksRow, ColdStreaksRow } from "@/components/dashboard/StreakRows";
+import { HotStreaksRow, UndefeatedStreaksRow, ColdStreaksRow } from "@/components/dashboard/StreakRows";
 import { MiniRankings } from "@/components/dashboard/TopScorerAndRankings";
 import { TopScorersCard, PeriodTopScorers } from "@/components/dashboard/ScorerCards";
 
@@ -92,6 +92,7 @@ export default async function HomePage() {
 
         <div className="space-y-6">
           <HotStreaksRow players={stats.hotStreakPlayers} />
+          <UndefeatedStreaksRow players={stats.undefeatedStreakPlayers} />
           <ColdStreaksRow players={stats.coldStreakPlayers} />
           <div className="md:hidden">
             <PeriodTopScorers
