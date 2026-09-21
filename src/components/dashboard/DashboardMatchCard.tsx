@@ -283,7 +283,7 @@ export function DashboardNoMatchCard({ canEnterMatch }: { canEnterMatch: boolean
   return (
     <div className="rounded-2xl bg-navy p-6 text-center shadow-sm ring-1 ring-navy-dark">
       <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Today&apos;s match</p>
-      <p className="mt-1 text-sm text-white/60">6:00 \u2013 7:00 AM</p>
+      <p className="mt-1 text-sm text-white/60">6:00 – 7:00 AM</p>
       <p className="mt-4 font-display text-xl font-bold text-white">MATCH NOT UPDATED</p>
       {canEnterMatch && (
         <Link
