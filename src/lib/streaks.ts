@@ -185,15 +185,14 @@ export function computeLongestUndefeatedStreakFromSequence(resultsAsc: Result[])
 /**
  * Regular player current losing streak, measured in calendar days.
  *
- * The streak STARTS on the "losing date" — the first non-win result the player
- * actually recorded (a LOSS or a DRAW) after their most recent WIN — and runs in
- * calendar days from that date up to the latest match date in the system. Once
- * started, LOSS/DRAW/ABSENT all continue it; only a WIN resets it.
+ * The streak STARTS on the "losing date" — the first actual LOSS the player recorded
+ * after their most recent WIN — and runs in calendar days from that date up to the
+ * latest match date in the system. Once started, LOSS/DRAW/ABSENT all continue it;
+ * only a WIN resets it.
  *
- * Crucially, absent days that fall AFTER a win but BEFORE the first non-win result
- * are NOT counted: the streak begins from when the player actually started dropping
- * points, not from the day after the win. If the player has no non-win result since
- * their last win (e.g. they only won, or have only been absent since), the streak is 0.
+ * A DRAW does NOT start a streak: a player who won and then only drew (no loss) has no
+ * losing streak. Absent days after a win but before the first loss are not counted
+ * either. If the player has no loss since their last win, the streak is 0.
  */
 export function computeRegularLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
@@ -208,14 +207,14 @@ export function computeRegularLosingStreakFromMap(
     if (lastWin === null || isAfter(date, lastWin)) lastWin = date;
   }
 
-  // Only results strictly after the last win (or from the start boundary if never won)
-  // can begin the current streak.
+  // Only a LOSS strictly after the last win (or from the start boundary if never won)
+  // can begin the current streak. Draws before the first loss do not start it.
   const lowerBound = lastWin ? addDays(lastWin, 1) : startBoundary;
 
-  // Earliest non-win result at/after the lower bound = the "losing date".
+  // Earliest LOSS at/after the lower bound = the "losing date".
   let streakStart: string | null = null;
   for (const [date, result] of resultsByDate) {
-    if (result === "win") continue;
+    if (result !== "loss") continue;
     if (isBefore(date, lowerBound) || isAfter(date, latestSystemDate)) continue;
     if (streakStart === null || isBefore(date, streakStart)) streakStart = date;
   }
@@ -233,9 +232,9 @@ export function computeRegularLosingStreakFromMap(
 }
 
 /** Longest-ever regular-player losing streak, in calendar days, across full history.
- * Each run starts on a "losing date" (first LOSS/DRAW after a win, matching the current
- * streak's rule) and ends the day before the next win (or the latest system date). Absent
- * days after a win but before the first non-win result are not counted toward any run. */
+ * Each run starts on a "losing date" (first LOSS after a win, matching the current
+ * streak's rule) and ends the day before the next win (or the latest system date). A draw
+ * never starts a run; draws and absences after the first loss continue it. */
 export function computeRegularLongestLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
   startBoundary: string,
@@ -252,11 +251,11 @@ export function computeRegularLongestLosingStreakFromMap(
         max = Math.max(max, daysInclusive(runStart, addDays(day, -1)));
         runStart = null;
       }
-    } else if (result === "loss" || result === "draw") {
-      // First non-win result begins a run; a run already open just continues.
+    } else if (result === "loss") {
+      // Only a LOSS begins a run; a run already open just continues.
       if (!runStart) runStart = day;
     }
-    // Absent days: continue an open run implicitly; never start one.
+    // Draws and absent days: continue an open run implicitly; never start one.
     day = addDays(day, 1);
   }
   if (runStart) {
@@ -281,26 +280,47 @@ function daysInclusive(from: string, to: string): number {
  * Irregular/foreign player current losing streak, measured in consecutive matches
  * actually played (calendar gaps from absence are ignored entirely - not counted as
  * days, just skipped since they're not in the played-match sequence).
+ *
+ * Like the regular streak, it STARTS only on a LOSS: draws played since the last win
+ * (with no loss among them) are not a losing streak. Once a loss starts it, draws played
+ * afterwards continue it; only a win resets it. So the streak = number of played matches
+ * from the first loss after the last win, through the most recent played match.
  */
 export function computeIrregularLosingStreakFromSequence(resultsDesc: Result[]): number {
-  let streak = 0;
+  // Played matches since the last win, oldest-first.
+  const sinceWin: Result[] = [];
   for (const r of resultsDesc) {
     if (r === "win") break;
-    streak++;
+    sinceWin.push(r);
   }
-  return streak;
+  sinceWin.reverse(); // now ascending (oldest played-since-win first)
+
+  const firstLoss = sinceWin.indexOf("loss");
+  if (firstLoss === -1) return 0; // only draws since the last win -> no losing streak
+  return sinceWin.length - firstLoss; // first loss through most recent played match
 }
 
-/** Longest-ever irregular-player losing streak, in played matches. */
+/** Longest-ever irregular-player losing streak, in played matches. Each run starts on a
+ * loss (a draw never starts one) and ends before the next win; draws after the first loss
+ * in a run continue it. */
 export function computeIrregularLongestLosingStreakFromSequence(resultsAsc: Result[]): number {
-  let current = 0;
   let max = 0;
+  let inRun = false;
+  let runLen = 0;
   for (const r of resultsAsc) {
     if (r === "win") {
-      current = 0;
+      inRun = false;
+      runLen = 0;
+    } else if (r === "loss") {
+      inRun = true;
+      runLen++;
+      max = Math.max(max, runLen);
     } else {
-      current++;
-      max = Math.max(max, current);
+      // draw: counts only if a loss already started this run
+      if (inRun) {
+        runLen++;
+        max = Math.max(max, runLen);
+      }
     }
   }
   return max;
