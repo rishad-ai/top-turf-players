@@ -23,7 +23,7 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function PlainAvatar({ name, photoUrl, size = 48 }: { name: string; photoUrl: string | null; size?: number }) {
+function PlainAvatar({ name, photoUrl, size = 40 }: { name: string; photoUrl: string | null; size?: number }) {
   if (photoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -84,7 +84,7 @@ function PositionRow({ players }: { players: LineupPlayer[] }) {
   return (
     <div className="flex items-start justify-around gap-1">
       {players.map((p) => (
-        <div key={p.playerId} className="flex flex-1 flex-col items-center gap-1 text-center">
+        <div key={p.playerId} className="flex flex-1 flex-col items-center gap-0.5 text-center">
           <div className="relative">
             <PlainAvatar name={p.name} photoUrl={p.photoUrl} />
             <SubArrow cameOn={p.cameOn} cameOff={p.cameOff} />
@@ -104,13 +104,13 @@ function PositionRow({ players }: { players: LineupPlayer[] }) {
 function SubsRow({ subs }: { subs: LineupPlayer[] }) {
   if (subs.length === 0) return null;
   return (
-    <div className="mt-3 border-t border-white/15 pt-2">
+    <div className="mt-2 border-t border-white/15 pt-1.5">
       <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-white/50">Substitutes</p>
-      <div className="flex flex-wrap items-start gap-3">
+      <div className="flex flex-wrap items-start gap-2">
         {subs.map((p) => (
-          <div key={p.playerId} className="flex w-14 flex-col items-center gap-1 text-center">
+          <div key={p.playerId} className="flex w-14 flex-col items-center gap-0.5 text-center">
             <div className="relative">
-              <PlainAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+              <PlainAvatar name={p.name} photoUrl={p.photoUrl} size={30} />
               <SubArrow cameOn={p.cameOn} cameOff={p.cameOff} />
             </div>
             <span className="w-full truncate text-[10px] font-semibold leading-tight text-white drop-shadow">
@@ -148,18 +148,18 @@ function TeamHalf({
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <span className="font-display text-sm font-bold text-white">{teamName}</span>
         <span className="font-display text-lg font-bold text-white">{score}</span>
       </div>
       {hasFormation ? (
-        <div className="space-y-5 py-1">
+        <div className="space-y-2.5 py-0.5">
           {rows.map((row, i) => (
             <PositionRow key={i} players={row} />
           ))}
         </div>
       ) : (
-        <div className="space-y-4 py-1">
+        <div className="space-y-2.5 py-0.5">
           <PositionRow players={unassigned} />
         </div>
       )}
@@ -233,7 +233,7 @@ export function DashboardMatchCard({
   return (
     <div>
       <div ref={captureRef} className="overflow-hidden rounded-2xl bg-navy shadow-sm ring-1 ring-navy-dark">
-        <div className="flex items-center justify-between px-4 pt-4">
+        <div className="flex items-center justify-between px-4 pt-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/60">{label}</p>
           <div className="flex items-center gap-1.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -242,25 +242,25 @@ export function DashboardMatchCard({
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-3 px-4 py-3">
+        <div className="flex items-center justify-center gap-3 px-4 py-2">
           <span className="flex-1 text-right font-display text-xs font-bold text-white sm:text-sm">{TEAM_A_NAME}</span>
-          <span className="font-display text-3xl font-bold text-white sm:text-4xl">
+          <span className="font-display text-2xl font-bold text-white sm:text-3xl">
             {teamAScore} : {teamBScore}
           </span>
           <span className="flex-1 text-left font-display text-xs font-bold text-white sm:text-sm">{TEAM_B_NAME}</span>
         </div>
-        <p className="pb-2 text-center text-[11px] text-white/50">{matchDate}</p>
+        <p className="pb-1.5 text-center text-[11px] text-white/50">{matchDate}</p>
 
-        <div className="relative mx-3 mb-3 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #1E7A46 0%, #145C34 100%)" }}>
+        <div className="relative mx-3 mb-2 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #1E7A46 0%, #145C34 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 bottom-0 h-px bg-white/20" />
-          <div className="px-3 pb-2 pt-3">
+          <div className="px-3 pb-2 pt-2">
             <TeamHalf teamName={TEAM_A_NAME} score={teamAScore} players={teamAPlayers} subs={teamASubs} />
           </div>
         </div>
 
-        <div className="relative mx-3 mb-4 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #B8862E 0%, #8C6620 100%)" }}>
+        <div className="relative mx-3 mb-3 overflow-hidden rounded-xl" style={{ background: "linear-gradient(180deg, #B8862E 0%, #8C6620 100%)" }}>
           <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-white/20" />
-          <div className="px-3 pb-2 pt-3">
+          <div className="px-3 pb-2 pt-2">
             <TeamHalf teamName={TEAM_B_NAME} score={teamBScore} players={teamBPlayers} subs={teamBSubs} mirror={true} />
           </div>
         </div>
