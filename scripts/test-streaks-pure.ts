@@ -102,6 +102,42 @@ assert(computeLongestUndefeatedStreakFromSequence([]) === 0, "longest undefeated
   assert(streak === 0, `Reset example: streak is 0 the day of and after a WIN (got ${streak})`);
 }
 
+// Streak starts from the LOSING DATE, not from the day after the last win:
+// absent days between a win and the first non-win result are NOT counted.
+{
+  // WIN 18th, (19th absent), DRAW 20th, (21st absent), LOSS 22nd -> start at the 20th.
+  const resultsByDate = new Map<string, "win" | "loss" | "draw">([
+    ["2026-09-18", "win"],
+    ["2026-09-20", "draw"],
+    ["2026-09-22", "loss"],
+  ]);
+  const streak = computeRegularLosingStreakFromMap(resultsByDate, "2026-09-22", "2026-09-01");
+  // Counts 20,21,22 = 3 (the 19th gap after the win is excluded).
+  assert(streak === 3, `streak starts from losing date (draw 20th), not day-after-win: expect 3 (got ${streak})`);
+}
+
+// If the player has only won or been absent since their last win, there is no losing streak.
+{
+  const resultsByDate = new Map<string, "win" | "loss" | "draw">([
+    ["2026-09-18", "win"],
+    // 19-22 all absent
+  ]);
+  const streak = computeRegularLosingStreakFromMap(resultsByDate, "2026-09-22", "2026-09-01");
+  assert(streak === 0, `won last, then only absent = no losing streak, expect 0 (got ${streak})`);
+}
+
+// Longest run also starts at the losing date: a leading absence after a win isn't counted.
+{
+  const resultsByDate = new Map<string, "win" | "loss" | "draw">([
+    ["2026-09-01", "win"],
+    // 09-02 absent (after win, before first loss) - must NOT count
+    ["2026-09-03", "loss"],
+    ["2026-09-04", "win"],
+  ]);
+  const longest = computeRegularLongestLosingStreakFromMap(resultsByDate, "2026-09-01", "2026-09-04");
+  assert(longest === 1, `longest run excludes the absent gap after a win: expect 1 (got ${longest})`);
+}
+
 // A draw does NOT reset the streak - critical rule, tested in isolation
 {
   const resultsByDate = new Map<string, "win" | "loss" | "draw">([

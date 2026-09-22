@@ -184,46 +184,97 @@ export function computeLongestUndefeatedStreakFromSequence(resultsAsc: Result[])
 
 /**
  * Regular player current losing streak, measured in calendar days.
- * Walks backward day-by-day from the latest match date in the whole system to the
- * player's activity start boundary. LOSS/DRAW/ABSENT all continue the streak;
- * only a WIN stops it (and that WIN day itself is not counted).
+ *
+ * The streak STARTS on the "losing date" — the first non-win result the player
+ * actually recorded (a LOSS or a DRAW) after their most recent WIN — and runs in
+ * calendar days from that date up to the latest match date in the system. Once
+ * started, LOSS/DRAW/ABSENT all continue it; only a WIN resets it.
+ *
+ * Crucially, absent days that fall AFTER a win but BEFORE the first non-win result
+ * are NOT counted: the streak begins from when the player actually started dropping
+ * points, not from the day after the win. If the player has no non-win result since
+ * their last win (e.g. they only won, or have only been absent since), the streak is 0.
  */
 export function computeRegularLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
   latestSystemDate: string,
   startBoundary: string
 ): number {
+  // Most recent WIN within [startBoundary, latestSystemDate].
+  let lastWin: string | null = null;
+  for (const [date, result] of resultsByDate) {
+    if (result !== "win") continue;
+    if (isBefore(date, startBoundary) || isAfter(date, latestSystemDate)) continue;
+    if (lastWin === null || isAfter(date, lastWin)) lastWin = date;
+  }
+
+  // Only results strictly after the last win (or from the start boundary if never won)
+  // can begin the current streak.
+  const lowerBound = lastWin ? addDays(lastWin, 1) : startBoundary;
+
+  // Earliest non-win result at/after the lower bound = the "losing date".
+  let streakStart: string | null = null;
+  for (const [date, result] of resultsByDate) {
+    if (result === "win") continue;
+    if (isBefore(date, lowerBound) || isAfter(date, latestSystemDate)) continue;
+    if (streakStart === null || isBefore(date, streakStart)) streakStart = date;
+  }
+
+  if (!streakStart) return 0;
+
+  // Calendar days from the losing date through the latest system date (inclusive).
   let streak = 0;
-  let day = latestSystemDate;
-  while (!isBefore(day, startBoundary)) {
-    const result = resultsByDate.get(day);
-    if (result === "win") break;
+  let day = streakStart;
+  while (!isAfter(day, latestSystemDate)) {
     streak++;
-    day = addDays(day, -1);
+    day = addDays(day, 1);
   }
   return streak;
 }
 
-/** Longest-ever regular-player losing streak, in calendar days, across full history. */
+/** Longest-ever regular-player losing streak, in calendar days, across full history.
+ * Each run starts on a "losing date" (first LOSS/DRAW after a win, matching the current
+ * streak's rule) and ends the day before the next win (or the latest system date). Absent
+ * days after a win but before the first non-win result are not counted toward any run. */
 export function computeRegularLongestLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
   startBoundary: string,
   latestSystemDate: string
 ): number {
-  let current = 0;
   let max = 0;
+  let runStart: string | null = null; // date the current run began, or null if not in a run
   let day = startBoundary;
   while (!isAfter(day, latestSystemDate)) {
     const result = resultsByDate.get(day);
     if (result === "win") {
-      current = 0;
-    } else {
-      current++;
-      max = Math.max(max, current);
+      // A win ends any open run the day before it.
+      if (runStart) {
+        max = Math.max(max, daysInclusive(runStart, addDays(day, -1)));
+        runStart = null;
+      }
+    } else if (result === "loss" || result === "draw") {
+      // First non-win result begins a run; a run already open just continues.
+      if (!runStart) runStart = day;
     }
+    // Absent days: continue an open run implicitly; never start one.
     day = addDays(day, 1);
   }
+  if (runStart) {
+    max = Math.max(max, daysInclusive(runStart, latestSystemDate));
+  }
   return max;
+}
+
+/** Inclusive count of calendar days from `from` to `to` (both YYYY-MM-DD). */
+function daysInclusive(from: string, to: string): number {
+  if (isAfter(from, to)) return 0;
+  let n = 0;
+  let day = from;
+  while (!isAfter(day, to)) {
+    n++;
+    day = addDays(day, 1);
+  }
+  return n;
 }
 
 /**
