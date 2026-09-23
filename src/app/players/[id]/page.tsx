@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeftRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { getPlayerById } from "@/lib/players";
 import { calculatePlayerStats, calculatePlayerMatchHistory } from "@/lib/stats";
@@ -55,11 +57,15 @@ export default async function PlayerProfilePage({
               unit={player.playerType === "irregular" ? "matches" : "days"}
             />
           </div>
-          {isOwnProfile && (
-            <div className="mt-3">
-              <ChangeMyPhotoButton />
-            </div>
-          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              href={`/compare?a=${player.id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-pitch-tint px-3 py-1.5 text-sm font-semibold text-pitch-dark transition hover:bg-pitch hover:text-white"
+            >
+              <ArrowLeftRight size={15} /> Compare with…
+            </Link>
+            {isOwnProfile && <ChangeMyPhotoButton />}
+          </div>
         </div>
       </div>
 

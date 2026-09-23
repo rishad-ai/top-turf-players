@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowLeftRight } from "lucide-react";
 import { getAllPlayers } from "@/lib/players";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -24,7 +26,15 @@ export default async function PlayersPage({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-ink">Players</h1>
-        <p className="text-sm text-ink-muted">{filtered.length} shown</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-ink-muted">{filtered.length} shown</p>
+          <Link
+            href="/compare"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-pitch-tint px-3 py-1.5 text-sm font-semibold text-pitch-dark transition hover:bg-pitch hover:text-white"
+          >
+            <ArrowLeftRight size={15} /> Compare
+          </Link>
+        </div>
       </div>
 
       <PlayerNameSearch initialQuery={q} />
