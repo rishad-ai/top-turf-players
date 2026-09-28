@@ -1,6 +1,6 @@
 import { getMatchDetail } from "./matchService";
 import { db } from "@/db";
-import { matches, players, matchPlayers, goals } from "@/db/schema";
+import { matches, players, matchPlayers, goals, injuries } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { computeStreaksFromData, type Result, type StreakSummary } from "./streaks";
 import type { PlayerStats } from "./stats";
@@ -12,6 +12,7 @@ export type DashboardPlayerSummary = PlayerStats &
     name: string;
     photoUrl: string | null;
     playerType: "regular" | "irregular";
+    injured: boolean;
   };
 
 export type YearlyExtreme = {
@@ -55,12 +56,25 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
   const today = todayISO();
 
   // --- Fetch everything once ---
-  const [allPlayers, allMatches, allMatchPlayers, allGoals] = await Promise.all([
+  const [allPlayers, allMatches, allMatchPlayers, allGoals, allInjuries] = await Promise.all([
     db.query.players.findMany(),
     db.query.matches.findMany(),
     db.query.matchPlayers.findMany(),
     db.query.goals.findMany(),
+    db.select({ playerId: injuries.playerId, start: injuries.startDate, end: injuries.endDate }).from(injuries),
   ]);
+
+  // Injury ranges per player, and who is injured right now (start<=today<=end|ongoing).
+  const injuryRangesByPlayer = new Map<number, { start: string; end: string | null }[]>();
+  for (const inj of allInjuries) {
+    const list = injuryRangesByPlayer.get(inj.playerId) ?? [];
+    list.push({ start: inj.start, end: inj.end });
+    injuryRangesByPlayer.set(inj.playerId, list);
+  }
+  const injuredNow = new Set<number>();
+  for (const [pid, ranges] of injuryRangesByPlayer) {
+    if (ranges.some((r) => r.start <= today && (r.end === null || r.end >= today))) injuredNow.add(pid);
+  }
 
   // --- System date bounds ---
   let systemEarliest: string | null = null;
@@ -145,7 +159,8 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
       played,
       createdDate,
       systemEarliest,
-      systemLatest
+      systemLatest,
+      injuryRangesByPlayer.get(p.id) ?? []
     );
 
     summaries.push({
@@ -162,6 +177,7 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
       name: p.name,
       photoUrl: p.photoUrl,
       playerType: p.playerType as "regular" | "irregular",
+      injured: injuredNow.has(p.id),
     });
   }
 
@@ -175,8 +191,10 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     .filter((s) => s.matchesPlayed > 0 && s.undefeatedStreak >= 3)
     .sort((a, b) => b.undefeatedStreak - a.undefeatedStreak);
 
+  // Injured players are hidden from the cold-streak list — they can't play, so their
+  // streak is frozen and shouldn't be surfaced as an active losing run.
   const coldStreakPlayers = summaries
-    .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3)
+    .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3 && !s.injured)
     .sort((a, b) => b.losingStreak - a.losingStreak);
 
   const scorers = summaries.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);

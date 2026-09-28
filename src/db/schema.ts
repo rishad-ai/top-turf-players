@@ -116,6 +116,27 @@ export const goals = pgTable("goals", {
 });
 
 /**
+ * INJURIES
+ * - An injury period during which a player cannot play. Days inside an injury range are
+ *   EXCLUDED from a regular player's calendar-day losing streak (they neither continue
+ *   nor break it) — an injured player shouldn't accrue a losing streak while out.
+ * - endDate null = still injured (ongoing). Set endDate to mark recovered.
+ * - A player may have multiple injury periods over time (full history).
+ */
+export const injuries = pgTable("injuries", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  playerId: integer("player_id")
+    .notNull()
+    .references(() => players.id, { onDelete: "cascade" }),
+  startDate: text("start_date").notNull(), // ISO date YYYY-MM-DD
+  endDate: text("end_date"), // ISO date YYYY-MM-DD, or null while still injured
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+});
+
+/**
  * ADMIN USERS
  * - Only admins can log in. Regular members never authenticate; the whole rest of the
  *   app is public/read-only.
@@ -134,6 +155,14 @@ export const adminUsers = pgTable("admin_users", {
 export const playersRelations = relations(players, ({ many }) => ({
   matchPlayers: many(matchPlayers),
   goals: many(goals),
+  injuries: many(injuries),
+}));
+
+export const injuriesRelations = relations(injuries, ({ one }) => ({
+  player: one(players, {
+    fields: [injuries.playerId],
+    references: [players.id],
+  }),
 }));
 
 export const matchesRelations = relations(matches, ({ many }) => ({

@@ -20,3 +20,11 @@ export function InactiveBadge() {
     </span>
   );
 }
+
+export function InjuredBadge({ days }: { days?: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-red-tint px-2.5 py-0.5 text-xs font-medium text-red">
+      🚑 Injured{typeof days === "number" && days > 0 ? ` · ${days}d` : ""}
+    </span>
+  );
+}

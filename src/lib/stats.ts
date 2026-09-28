@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { players, matchPlayers, matches, goals } from "@/db/schema";
+import { players, matchPlayers, matches, goals, injuries } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { calculatePlayerStreaks, computeStreaksFromData, type StreakSummary, type Result } from "./streaks";
 
@@ -135,12 +135,20 @@ export async function calculateLeaderboard(
   metric: LeaderboardMetric,
   { includeInactive = false }: { includeInactive?: boolean } = {}
 ): Promise<LeaderboardEntry[]> {
-  const [allPlayers, allMatches, allMatchPlayers, allGoals] = await Promise.all([
+  const [allPlayers, allMatches, allMatchPlayers, allGoals, allInjuries] = await Promise.all([
     db.query.players.findMany(),
     db.query.matches.findMany(),
     db.query.matchPlayers.findMany(),
     db.query.goals.findMany(),
+    db.select({ playerId: injuries.playerId, start: injuries.startDate, end: injuries.endDate }).from(injuries),
   ]);
+
+  const injuryRangesByPlayer = new Map<number, { start: string; end: string | null }[]>();
+  for (const inj of allInjuries) {
+    const list = injuryRangesByPlayer.get(inj.playerId) ?? [];
+    list.push({ start: inj.start, end: inj.end });
+    injuryRangesByPlayer.set(inj.playerId, list);
+  }
 
   let systemEarliest: string | null = null;
   let systemLatest: string | null = null;
@@ -188,7 +196,8 @@ export async function calculateLeaderboard(
       played,
       createdDate,
       systemEarliest,
-      systemLatest
+      systemLatest,
+      injuryRangesByPlayer.get(p.id) ?? []
     );
 
     withStats.push({

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PlayerAvatar } from "./PlayerAvatar";
-import { PlayerTypeBadge, InactiveBadge } from "./PlayerBadges";
+import { PlayerTypeBadge, InactiveBadge, InjuredBadge } from "./PlayerBadges";
 
 export type PlayerCardData = {
   id: number;
@@ -8,6 +8,8 @@ export type PlayerCardData = {
   photoUrl: string | null;
   playerType: "regular" | "irregular";
   isActive: boolean;
+  injured?: boolean;
+  injuryDays?: number;
 };
 
 export function PlayerCard({ player }: { player: PlayerCardData }) {
@@ -23,6 +25,7 @@ export function PlayerCard({ player }: { player: PlayerCardData }) {
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <PlayerTypeBadge type={player.playerType} />
+          {player.injured && <InjuredBadge days={player.injuryDays} />}
           {!player.isActive && <InactiveBadge />}
         </div>
       </div>

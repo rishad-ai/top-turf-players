@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { ArrowLeftRight } from "lucide-react";
 import { getAllPlayers } from "@/lib/players";
+import { getInjuryRangesByPlayer, injuryDurationDays } from "@/lib/injuries";
 import { PlayerCard } from "@/components/players/PlayerCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PlayersFilterBar } from "./PlayersFilterBar";
 import { PlayerNameSearch } from "./PlayerNameSearch";
+
+export const dynamic = "force-dynamic";
 
 export default async function PlayersPage({
   searchParams,
@@ -12,11 +15,26 @@ export default async function PlayersPage({
   searchParams: Promise<{ status?: string; type?: string; q?: string }>;
 }) {
   const { status = "active", type = "all", q = "" } = await searchParams;
-  const all = await getAllPlayers();
+  const [all, injuryRanges] = await Promise.all([getAllPlayers(), getInjuryRangesByPlayer()]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  // Who is injured right now, and for how long.
+  const injuryInfo = new Map<number, { injured: boolean; days: number }>();
+  for (const [pid, ranges] of injuryRanges) {
+    const active = ranges.find((r) => r.start <= today && (r.end === null || r.end >= today));
+    if (active) injuryInfo.set(pid, { injured: true, days: injuryDurationDays(active.start, active.end, today) });
+  }
 
   const filtered = all.filter((p) => {
+    const injured = injuryInfo.get(p.id)?.injured ?? false;
     const statusOk =
-      status === "all" ? true : status === "active" ? p.isActive : !p.isActive;
+      status === "all"
+        ? true
+        : status === "active"
+          ? p.isActive
+          : status === "injured"
+            ? injured
+            : !p.isActive;
     const typeOk = type === "all" ? true : p.playerType === type;
     const nameOk = q.trim() ? p.name.toLowerCase().includes(q.trim().toLowerCase()) : true;
     return statusOk && typeOk && nameOk;
@@ -60,6 +78,8 @@ export default async function PlayersPage({
                 photoUrl: p.photoUrl,
                 playerType: p.playerType as "regular" | "irregular",
                 isActive: p.isActive,
+                injured: injuryInfo.get(p.id)?.injured ?? false,
+                injuryDays: injuryInfo.get(p.id)?.days,
               }}
             />
           ))}

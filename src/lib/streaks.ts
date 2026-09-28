@@ -1,6 +1,17 @@
 import { db } from "@/db";
-import { players, matchPlayers, matches } from "@/db/schema";
+import { players, matchPlayers, matches, injuries } from "@/db/schema";
 import { eq, and, asc } from "drizzle-orm";
+
+/** This player's injury ranges (for excluding injury days from the losing streak). */
+async function getPlayerInjuryRanges(playerId: number): Promise<{ start: string; end: string | null }[]> {
+  const rows = await db.select({ start: injuries.startDate, end: injuries.endDate }).from(injuries).where(eq(injuries.playerId, playerId));
+  return rows.map((r) => ({ start: r.start, end: r.end }));
+}
+
+function injuryPredicate(ranges: { start: string; end: string | null }[]): ((date: string) => boolean) | undefined {
+  if (ranges.length === 0) return undefined;
+  return (date: string) => ranges.some((r) => date >= r.start && (r.end === null || date <= r.end));
+}
 
 export type Result = "win" | "loss" | "draw";
 
@@ -42,7 +53,8 @@ export function computeStreaksFromData(
   resultsAscByDate: { matchDate: string; result: Result }[], // this player's PLAYED matches, ascending
   createdDate: string,
   systemEarliest: string | null,
-  systemLatest: string | null
+  systemLatest: string | null,
+  injuryRanges: { start: string; end: string | null }[] = [] // days the player was injured (excluded from losing streak)
 ): StreakSummary {
   const seqAsc = resultsAscByDate.map((r) => r.result);
   const seqDesc = [...seqAsc].reverse();
@@ -51,6 +63,11 @@ export function computeStreaksFromData(
   const longestWinningStreak = computeLongestWinningStreakFromSequence(seqAsc);
   const undefeatedStreak = computeUndefeatedStreakFromSequence(seqDesc);
   const longestUndefeatedStreak = computeLongestUndefeatedStreakFromSequence(seqAsc);
+
+  const isInjured =
+    injuryRanges.length === 0
+      ? undefined
+      : (date: string) => injuryRanges.some((r) => date >= r.start && (r.end === null || date <= r.end));
 
   let losingStreak = 0;
   let longestLosingStreak = 0;
@@ -62,8 +79,8 @@ export function computeStreaksFromData(
     const startBoundary = maxDate(systemEarliest, createdDate);
     const resultsByDate = new Map<string, Result>();
     for (const r of resultsAscByDate) resultsByDate.set(r.matchDate, r.result);
-    losingStreak = computeRegularLosingStreakFromMap(resultsByDate, systemLatest, startBoundary);
-    longestLosingStreak = computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, systemLatest);
+    losingStreak = computeRegularLosingStreakFromMap(resultsByDate, systemLatest, startBoundary, isInjured);
+    longestLosingStreak = computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, systemLatest, isInjured);
   }
 
   return {
@@ -197,7 +214,8 @@ export function computeLongestUndefeatedStreakFromSequence(resultsAsc: Result[])
 export function computeRegularLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
   latestSystemDate: string,
-  startBoundary: string
+  startBoundary: string,
+  isInjured?: (date: string) => boolean
 ): number {
   // Most recent WIN within [startBoundary, latestSystemDate].
   let lastWin: string | null = null;
@@ -222,10 +240,12 @@ export function computeRegularLosingStreakFromMap(
   if (!streakStart) return 0;
 
   // Calendar days from the losing date through the latest system date (inclusive).
+  // Injury days are excluded — an injured player can't play, so those days neither
+  // count toward nor break the losing streak.
   let streak = 0;
   let day = streakStart;
   while (!isAfter(day, latestSystemDate)) {
-    streak++;
+    if (!isInjured || !isInjured(day)) streak++;
     day = addDays(day, 1);
   }
   return streak;
@@ -238,42 +258,38 @@ export function computeRegularLosingStreakFromMap(
 export function computeRegularLongestLosingStreakFromMap(
   resultsByDate: Map<string, Result>,
   startBoundary: string,
-  latestSystemDate: string
+  latestSystemDate: string,
+  isInjured?: (date: string) => boolean
 ): number {
   let max = 0;
-  let runStart: string | null = null; // date the current run began, or null if not in a run
+  let inRun = false;
+  let runLen = 0;
   let day = startBoundary;
   while (!isAfter(day, latestSystemDate)) {
+    // Injury days are excused: they neither count toward a run nor break it.
+    if (isInjured && isInjured(day)) {
+      day = addDays(day, 1);
+      continue;
+    }
     const result = resultsByDate.get(day);
     if (result === "win") {
-      // A win ends any open run the day before it.
-      if (runStart) {
-        max = Math.max(max, daysInclusive(runStart, addDays(day, -1)));
-        runStart = null;
-      }
+      inRun = false;
+      runLen = 0;
     } else if (result === "loss") {
       // Only a LOSS begins a run; a run already open just continues.
-      if (!runStart) runStart = day;
+      inRun = true;
+      runLen++;
+      max = Math.max(max, runLen);
+    } else {
+      // Draw or absent day: counts only if a loss already started this run.
+      if (inRun) {
+        runLen++;
+        max = Math.max(max, runLen);
+      }
     }
-    // Draws and absent days: continue an open run implicitly; never start one.
     day = addDays(day, 1);
-  }
-  if (runStart) {
-    max = Math.max(max, daysInclusive(runStart, latestSystemDate));
   }
   return max;
-}
-
-/** Inclusive count of calendar days from `from` to `to` (both YYYY-MM-DD). */
-function daysInclusive(from: string, to: string): number {
-  if (isAfter(from, to)) return 0;
-  let n = 0;
-  let day = from;
-  while (!isAfter(day, to)) {
-    n++;
-    day = addDays(day, 1);
-  }
-  return n;
 }
 
 /**
@@ -374,7 +390,8 @@ export async function calculateLosingStreak(playerId: number): Promise<number> {
   const startBoundary = createdDate ? maxDate(earliest, createdDate) : earliest;
 
   const resultsByDate = await getPlayerResultsByDate(playerId);
-  return computeRegularLosingStreakFromMap(resultsByDate, latest, startBoundary);
+  const isInjured = injuryPredicate(await getPlayerInjuryRanges(playerId));
+  return computeRegularLosingStreakFromMap(resultsByDate, latest, startBoundary, isInjured);
 }
 
 export async function calculateLongestLosingStreak(playerId: number): Promise<number> {
@@ -393,7 +410,8 @@ export async function calculateLongestLosingStreak(playerId: number): Promise<nu
   const startBoundary = createdDate ? maxDate(earliest, createdDate) : earliest;
 
   const resultsByDate = await getPlayerResultsByDate(playerId);
-  return computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, latest);
+  const isInjured = injuryPredicate(await getPlayerInjuryRanges(playerId));
+  return computeRegularLongestLosingStreakFromMap(resultsByDate, startBoundary, latest, isInjured);
 }
 
 export async function calculatePlayerStreaks(playerId: number): Promise<StreakSummary> {

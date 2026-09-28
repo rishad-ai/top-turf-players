@@ -51,6 +51,9 @@ export function PlayersFilterBar({
         <Pill active={status === "all"} onClick={() => update("status", "all")}>
           All
         </Pill>
+        <Pill active={status === "injured"} onClick={() => update("status", "injured")}>
+          Injured
+        </Pill>
         <Pill active={status === "inactive"} onClick={() => update("status", "inactive")}>
           Inactive
         </Pill>

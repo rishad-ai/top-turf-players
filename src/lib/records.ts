@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { players, matches, matchPlayers, goals } from "@/db/schema";
+import { players, matches, matchPlayers, goals, injuries } from "@/db/schema";
 import {
   computeRegularLongestLosingStreakFromMap,
   computeIrregularLongestLosingStreakFromSequence,
@@ -71,12 +71,22 @@ export async function calculateRecords(): Promise<Records> {
     timeZone: "UTC",
   });
 
-  const [allPlayers, allMatches, allMatchPlayers, allGoals] = await Promise.all([
+  const [allPlayers, allMatches, allMatchPlayers, allGoals, allInjuries] = await Promise.all([
     db.query.players.findMany(),
     db.query.matches.findMany(),
     db.query.matchPlayers.findMany(),
     db.query.goals.findMany(),
+    db.select({ playerId: injuries.playerId, start: injuries.startDate, end: injuries.endDate }).from(injuries),
   ]);
+
+  const injuryRangesByPlayer = new Map<number, { start: string; end: string | null }[]>();
+  for (const inj of allInjuries) {
+    const list = injuryRangesByPlayer.get(inj.playerId) ?? [];
+    list.push({ start: inj.start, end: inj.end });
+    injuryRangesByPlayer.set(inj.playerId, list);
+  }
+  const injuredPredicate = (ranges: { start: string; end: string | null }[]) =>
+    ranges.length === 0 ? undefined : (d: string) => ranges.some((r) => d >= r.start && (r.end === null || d <= r.end));
 
   const nameById = new Map<number, { name: string; photoUrl: string | null; playerType: "regular" | "irregular"; createdAt: Date; isActive: boolean }>();
   for (const p of allPlayers)
@@ -167,8 +177,9 @@ export async function calculateRecords(): Promise<Records> {
     const info = nameById.get(p.id)!;
     const createdDate = p.createdAt.toISOString().slice(0, 10);
 
+    const ranges = injuryRangesByPlayer.get(p.id) ?? [];
     // All-time longest losing streak (reuse the shared engine).
-    const streaks = computeStreaksFromData(info.playerType, played, createdDate, systemEarliest, systemLatest);
+    const streaks = computeStreaksFromData(info.playerType, played, createdDate, systemEarliest, systemLatest, ranges);
     if (streaks.longestLosingStreak > 0)
       losingAllTime.push({ playerId: p.id, name: info.name, photoUrl: info.photoUrl, playerType: info.playerType, streak: streaks.longestLosingStreak });
 
@@ -182,7 +193,7 @@ export async function calculateRecords(): Promise<Records> {
         const map = new Map<string, Result>();
         for (const r of played) if (r.matchDate >= lastMonthStart && r.matchDate <= lastMonthEnd) map.set(r.matchDate, r.result);
         const startBoundary = createdDate > lastMonthStart ? createdDate : lastMonthStart;
-        windowStreak = computeRegularLongestLosingStreakFromMap(map, startBoundary, lastMonthLatest);
+        windowStreak = computeRegularLongestLosingStreakFromMap(map, startBoundary, lastMonthLatest, injuredPredicate(ranges));
       }
       if (windowStreak > 0)
         losingLastMonth.push({ playerId: p.id, name: info.name, photoUrl: info.photoUrl, playerType: info.playerType, streak: windowStreak });

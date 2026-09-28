@@ -4,9 +4,10 @@ import { notFound } from "next/navigation";
 import { getPlayerById } from "@/lib/players";
 import { calculatePlayerStats, calculatePlayerMatchHistory } from "@/lib/stats";
 import { calculatePlayerStreaks } from "@/lib/streaks";
+import { getPlayerInjuries, currentInjury, injuryDurationDays } from "@/lib/injuries";
 import { getMemberSession } from "@/lib/auth";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
-import { PlayerTypeBadge, InactiveBadge } from "@/components/players/PlayerBadges";
+import { PlayerTypeBadge, InactiveBadge, InjuredBadge } from "@/components/players/PlayerBadges";
 import { HotStreakBadge, ColdStreakBadge } from "@/components/players/StreakBadges";
 import { RecentForm } from "@/components/players/RecentForm";
 import { PlayerMatchHistoryList } from "@/components/players/PlayerMatchHistoryList";
@@ -37,8 +38,13 @@ export default async function PlayerProfilePage({
   const stats = await calculatePlayerStats(playerId);
   const history = await calculatePlayerMatchHistory(playerId);
   const streaks = await calculatePlayerStreaks(playerId);
+  const injuryList = await getPlayerInjuries(playerId);
   const member = await getMemberSession();
   const isOwnProfile = member?.playerId === playerId;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const activeInjury = currentInjury(injuryList, today);
+  const activeInjuryDays = activeInjury ? injuryDurationDays(activeInjury.startDate, activeInjury.endDate, today) : 0;
 
   return (
     <div className="space-y-6">
@@ -50,6 +56,7 @@ export default async function PlayerProfilePage({
           </h1>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <PlayerTypeBadge type={player.playerType as "regular" | "irregular"} />
+            {activeInjury && <InjuredBadge days={activeInjuryDays} />}
             {!player.isActive && <InactiveBadge />}
             <HotStreakBadge count={streaks.winningStreak} />
             <ColdStreakBadge
@@ -100,6 +107,41 @@ export default async function PlayerProfilePage({
             <PlayerMatchHistoryList history={history} />
           </div>
         </>
+      )}
+
+      {(activeInjury || injuryList.length > 0) && (
+        <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
+          <p className="mb-2 font-display text-base font-semibold text-ink">🚑 Injuries</p>
+          {activeInjury && (
+            <div className="mb-3 rounded-xl bg-red-tint p-3">
+              <p className="text-sm font-semibold text-red">
+                Currently injured · {activeInjuryDays} day{activeInjuryDays === 1 ? "" : "s"}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-muted">
+                Since {activeInjury.startDate}
+                {activeInjury.note ? ` — ${activeInjury.note}` : ""}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">These days are excluded from the losing streak.</p>
+            </div>
+          )}
+          {injuryList.length > 0 && (
+            <ul className="space-y-1.5">
+              {injuryList.map((inj) => {
+                const ongoing = inj.endDate === null;
+                const days = injuryDurationDays(inj.startDate, inj.endDate, today);
+                return (
+                  <li key={inj.id} className="flex items-center justify-between border-b border-line py-1.5 text-sm last:border-0">
+                    <span className="text-ink">
+                      {inj.startDate} → {ongoing ? "ongoing" : inj.endDate}
+                      {inj.note ? <span className="text-ink-muted"> · {inj.note}</span> : null}
+                    </span>
+                    <span className="shrink-0 font-medium text-ink-muted">{days}d</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );
