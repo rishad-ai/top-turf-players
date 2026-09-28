@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { calculateDashboardStats } from "@/lib/dashboard";
 import { getSession, getMemberSession } from "@/lib/auth";
 import { DashboardMatchCard, DashboardNoMatchCard } from "@/components/dashboard/DashboardMatchCard";
@@ -105,6 +106,12 @@ export default async function HomePage() {
           <TopScorersCard scorers={stats.topScorers} />
           <BiggestResultCard result={stats.biggestResultThisYear} year={currentYear} />
           <MiniRankings players={stats.topPlayersByWins} />
+          <Link
+            href="/records"
+            className="flex items-center justify-center gap-1.5 rounded-2xl bg-pitch-tint px-4 py-3 text-sm font-semibold text-pitch-dark shadow-sm ring-1 ring-pitch/20 transition hover:bg-pitch hover:text-white"
+          >
+            📊 See all records & leaderboards
+          </Link>
         </div>
       </div>
     </div>

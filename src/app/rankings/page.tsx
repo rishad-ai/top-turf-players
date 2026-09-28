@@ -48,7 +48,9 @@ export default async function RankingsPage({
     <div className="space-y-4">
       <div className="flex items-baseline justify-between">
         <h1 className="font-display text-2xl font-semibold text-ink">Rankings</h1>
-        <span className="text-sm text-ink-muted">Top 10</span>
+        <Link href="/records" className="text-sm font-semibold text-pitch-dark hover:underline">
+          Records →
+        </Link>
       </div>
 
       <RankingTabs active={metric} />

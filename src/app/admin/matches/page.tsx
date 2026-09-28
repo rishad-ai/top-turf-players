@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAllMatchesSummary } from "@/lib/matchService";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeleteMatchButton } from "./DeleteMatchButton";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,12 @@ export default async function AdminMatchesPage() {
 
   return (
     <div className="space-y-4">
+      <Link
+        href="/admin"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition hover:text-ink"
+      >
+        <ArrowLeft size={16} /> Back to admin
+      </Link>
       <div className="flex items-center justify-between">
         <h1 className="font-display text-2xl font-semibold text-ink">Manage matches</h1>
         <Link
