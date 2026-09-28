@@ -42,8 +42,10 @@ export type Records = {
   winsLastMonth: WinsRow[];
   losingStreakLastMonth: StreakRow[];
   losingStreakAllTime: StreakRow[];
-  biggestResults: ResultRow[];
-  topScoringGames: TopGameRow[];
+  biggestResultsAllTime: ResultRow[];
+  biggestResultsThisYear: ResultRow[];
+  topScoringGamesAllTime: TopGameRow[];
+  topScoringGamesThisYear: TopGameRow[];
 };
 
 function todayISO(): string {
@@ -190,29 +192,40 @@ export async function calculateRecords(): Promise<Records> {
   losingLastMonth.sort((a, b) => b.streak - a.streak);
 
   // ---- Biggest results (by margin) and top-scoring games (by combined goals) ----
-  const decided = allMatches.filter((mt) => mt.teamAScore !== mt.teamBScore);
-  const biggestResults: ResultRow[] = decided
-    .map((mt) => ({
-      matchId: mt.id,
-      matchDate: mt.matchDate,
-      teamAScore: mt.teamAScore,
-      teamBScore: mt.teamBScore,
-      winningTeam: (mt.teamAScore > mt.teamBScore ? "A" : "B") as "A" | "B",
-      margin: Math.abs(mt.teamAScore - mt.teamBScore),
-    }))
-    .sort((a, b) => b.margin - a.margin || (a.matchDate < b.matchDate ? 1 : -1))
-    .slice(0, 5);
+  function biggestResults(inWindow: (d: string) => boolean): ResultRow[] {
+    return allMatches
+      .filter((mt) => mt.teamAScore !== mt.teamBScore && inWindow(mt.matchDate))
+      .map((mt) => ({
+        matchId: mt.id,
+        matchDate: mt.matchDate,
+        teamAScore: mt.teamAScore,
+        teamBScore: mt.teamBScore,
+        winningTeam: (mt.teamAScore > mt.teamBScore ? "A" : "B") as "A" | "B",
+        margin: Math.abs(mt.teamAScore - mt.teamBScore),
+      }))
+      .sort((a, b) => b.margin - a.margin || (a.matchDate < b.matchDate ? 1 : -1))
+      .slice(0, 5);
+  }
 
-  const topScoringGames: TopGameRow[] = allMatches
-    .map((mt) => ({
-      matchId: mt.id,
-      matchDate: mt.matchDate,
-      teamAScore: mt.teamAScore,
-      teamBScore: mt.teamBScore,
-      totalGoals: mt.teamAScore + mt.teamBScore,
-    }))
-    .sort((a, b) => b.totalGoals - a.totalGoals || (a.matchDate < b.matchDate ? 1 : -1))
-    .slice(0, 5);
+  function topScoringGames(inWindow: (d: string) => boolean): TopGameRow[] {
+    return allMatches
+      .filter((mt) => inWindow(mt.matchDate))
+      .map((mt) => ({
+        matchId: mt.id,
+        matchDate: mt.matchDate,
+        teamAScore: mt.teamAScore,
+        teamBScore: mt.teamBScore,
+        totalGoals: mt.teamAScore + mt.teamBScore,
+      }))
+      .sort((a, b) => b.totalGoals - a.totalGoals || (a.matchDate < b.matchDate ? 1 : -1))
+      .slice(0, 5);
+  }
+
+  const thisYear = (d: string) => d.startsWith(`${currentYear}-`);
+  const biggestResultsAllTime = biggestResults(() => true);
+  const biggestResultsThisYear = biggestResults(thisYear);
+  const topScoringGamesAllTime = topScoringGames(() => true);
+  const topScoringGamesThisYear = topScoringGames(thisYear);
 
   return {
     lastMonthLabel,
@@ -224,7 +237,9 @@ export async function calculateRecords(): Promise<Records> {
     winsLastMonth,
     losingStreakLastMonth: losingLastMonth.slice(0, 5),
     losingStreakAllTime: losingAllTime.slice(0, 5),
-    biggestResults,
-    topScoringGames,
+    biggestResultsAllTime,
+    biggestResultsThisYear,
+    topScoringGamesAllTime,
+    topScoringGamesThisYear,
   };
 }

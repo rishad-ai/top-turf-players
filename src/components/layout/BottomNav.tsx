@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Users, Swords, Trophy, ShieldCheck } from "lucide-react";
+import { Home, Users, Swords, Trophy, BarChart3, ShieldCheck } from "lucide-react";
 
 const ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/players", label: "Players", icon: Users },
   { href: "/matches", label: "Matches", icon: Swords },
   { href: "/rankings", label: "Rankings", icon: Trophy },
+  { href: "/records", label: "Records", icon: BarChart3 },
   { href: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 

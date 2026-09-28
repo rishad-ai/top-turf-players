@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { calculateRecords, type ScorerRow, type WinsRow, type StreakRow, type ResultRow, type TopGameRow } from "@/lib/records";
+import { calculateRecords, type ScorerRow, type WinsRow, type StreakRow } from "@/lib/records";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { teamName } from "@/lib/teams";
+import { MatchRecordsSection } from "./MatchRecordsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -100,67 +100,11 @@ function StreakCard({ title, subtitle, rows }: { title: string; subtitle?: strin
   );
 }
 
-function ResultsCard({ title, rows }: { title: string; rows: ResultRow[] }) {
-  return (
-    <Card title={title}>
-      {rows.length === 0 ? (
-        <Empty />
-      ) : (
-        rows.map((r, i) => (
-          <Link
-            key={r.matchId}
-            href={`/matches/${r.matchId}`}
-            className="flex items-center gap-2.5 border-b border-line py-2 last:border-0"
-          >
-            <Rank i={i} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink">
-                {teamName(r.winningTeam)} won by {r.margin}
-              </p>
-              <p className="text-xs text-ink-muted">{r.matchDate}</p>
-            </div>
-            <span className="shrink-0 font-display text-sm font-bold text-ink">
-              {r.teamAScore}–{r.teamBScore}
-            </span>
-          </Link>
-        ))
-      )}
-    </Card>
-  );
-}
-
-function TopGamesCard({ title, rows }: { title: string; rows: TopGameRow[] }) {
-  return (
-    <Card title={title}>
-      {rows.length === 0 ? (
-        <Empty />
-      ) : (
-        rows.map((r, i) => (
-          <Link
-            key={r.matchId}
-            href={`/matches/${r.matchId}`}
-            className="flex items-center gap-2.5 border-b border-line py-2 last:border-0"
-          >
-            <Rank i={i} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink">
-                {r.teamAScore}–{r.teamBScore}
-              </p>
-              <p className="text-xs text-ink-muted">{r.matchDate}</p>
-            </div>
-            <span className="shrink-0 font-display text-sm font-bold text-pitch">{r.totalGoals} ⚽</span>
-          </Link>
-        ))
-      )}
-    </Card>
-  );
-}
-
 export default async function RecordsPage() {
   const r = await calculateRecords();
 
   const hasAnything =
-    r.scorersAllTime.length > 0 || r.biggestResults.length > 0 || r.topScoringGames.length > 0;
+    r.scorersAllTime.length > 0 || r.biggestResultsAllTime.length > 0 || r.topScoringGamesAllTime.length > 0;
 
   if (!hasAnything) {
     return (
@@ -205,13 +149,13 @@ export default async function RecordsPage() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="font-display text-lg font-semibold text-ink">📊 Match records</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <ResultsCard title="Biggest wins & losses" rows={r.biggestResults} />
-          <TopGamesCard title="Top-scoring games" rows={r.topScoringGames} />
-        </div>
-      </section>
+      <MatchRecordsSection
+        currentYear={r.currentYear}
+        biggestResultsAllTime={r.biggestResultsAllTime}
+        biggestResultsThisYear={r.biggestResultsThisYear}
+        topScoringGamesAllTime={r.topScoringGamesAllTime}
+        topScoringGamesThisYear={r.topScoringGamesThisYear}
+      />
     </div>
   );
 }
