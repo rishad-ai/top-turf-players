@@ -22,7 +22,8 @@ export default async function PlayersPage({
   const injuryInfo = new Map<number, { injured: boolean; days: number }>();
   for (const [pid, ranges] of injuryRanges) {
     const active = ranges.find((r) => r.start <= today && (r.end === null || r.end >= today));
-    if (active) injuryInfo.set(pid, { injured: true, days: injuryDurationDays(active.start, active.end, today) });
+    // Days elapsed so far (start → today), even if an expected recovery date is set in the future.
+    if (active) injuryInfo.set(pid, { injured: true, days: injuryDurationDays(active.start, null, today) });
   }
 
   const filtered = all.filter((p) => {

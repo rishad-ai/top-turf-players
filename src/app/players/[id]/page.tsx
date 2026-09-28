@@ -44,7 +44,9 @@ export default async function PlayerProfilePage({
 
   const today = new Date().toISOString().slice(0, 10);
   const activeInjury = currentInjury(injuryList, today);
-  const activeInjuryDays = activeInjury ? injuryDurationDays(activeInjury.startDate, activeInjury.endDate, today) : 0;
+  // Days elapsed so far (start → today), even if an expected recovery date is set in the future.
+  const activeInjuryDays = activeInjury ? injuryDurationDays(activeInjury.startDate, null, today) : 0;
+  const expectedReturn = activeInjury && activeInjury.endDate && activeInjury.endDate >= today ? activeInjury.endDate : null;
 
   return (
     <div className="space-y-6">
@@ -119,6 +121,7 @@ export default async function PlayerProfilePage({
               </p>
               <p className="mt-0.5 text-xs text-ink-muted">
                 Since {activeInjury.startDate}
+                {expectedReturn ? ` · expected back ${expectedReturn}` : ""}
                 {activeInjury.note ? ` — ${activeInjury.note}` : ""}
               </p>
               <p className="mt-1 text-xs text-ink-muted">These days are excluded from the losing streak.</p>

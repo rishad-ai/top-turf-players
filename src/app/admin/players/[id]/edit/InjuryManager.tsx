@@ -84,7 +84,6 @@ export function InjuryManager({ playerId, injuries }: { playerId: number; injuri
                     <input
                       type="date"
                       value={recoverDate}
-                      max={todayISO()}
                       min={inj.startDate}
                       onChange={(e) => setRecoverDate(e.target.value)}
                       className="rounded-md border border-line bg-bg px-2 py-1 text-xs text-ink"
@@ -128,12 +127,11 @@ export function InjuryManager({ playerId, injuries }: { playerId: number; injuri
               />
             </label>
             <label className="flex flex-col">
-              <span className="mb-1 text-xs text-ink-muted">Recovered on (optional)</span>
+              <span className="mb-1 text-xs text-ink-muted">Recovered / expected on (optional)</span>
               <input
                 type="date"
                 value={endDate}
                 min={startDate}
-                max={todayISO()}
                 onChange={(e) => setEndDate(e.target.value)}
                 className="rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink"
               />
