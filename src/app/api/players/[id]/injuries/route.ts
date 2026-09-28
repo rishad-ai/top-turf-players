@@ -22,8 +22,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const body = await req.json().catch(() => null);
   const startDate = typeof body?.startDate === "string" ? body.startDate : "";
   if (!ISO_DATE.test(startDate)) return NextResponse.json({ error: "startDate must be YYYY-MM-DD." }, { status: 400 });
+
+  let endDate: string | null = null;
+  if (body?.endDate != null && body.endDate !== "") {
+    if (typeof body.endDate !== "string" || !ISO_DATE.test(body.endDate))
+      return NextResponse.json({ error: "endDate must be YYYY-MM-DD." }, { status: 400 });
+    if (body.endDate < startDate)
+      return NextResponse.json({ error: "End date can't be before the start date." }, { status: 400 });
+    endDate = body.endDate;
+  }
+
   const note = typeof body?.note === "string" && body.note.trim() ? body.note.trim().slice(0, 200) : null;
 
-  await addInjury(playerId, startDate, note);
+  await addInjury(playerId, startDate, note, endDate);
   return NextResponse.json({ ok: true });
 }

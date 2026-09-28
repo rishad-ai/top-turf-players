@@ -68,8 +68,13 @@ export async function getInjuryRangesByPlayer(): Promise<Map<number, InjuryRange
   return map;
 }
 
-export async function addInjury(playerId: number, startDate: string, note: string | null): Promise<void> {
-  await db.insert(injuries).values({ playerId, startDate, endDate: null, note });
+export async function addInjury(
+  playerId: number,
+  startDate: string,
+  note: string | null,
+  endDate: string | null = null
+): Promise<void> {
+  await db.insert(injuries).values({ playerId, startDate, endDate, note });
 }
 
 export async function endInjury(injuryId: number, endDate: string): Promise<void> {
