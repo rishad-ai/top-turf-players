@@ -96,6 +96,19 @@ export default async function PlayerProfilePage({
             <StatBlock label="Win %" value={`${stats.winPercentage}%`} />
           </div>
 
+          {/* Team goals across matches this player played in. */}
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
+            <StatBlock label="Goals for (team)" value={stats.teamGoalsFor ?? 0} />
+            <StatBlock label="Goals against (team)" value={stats.teamGoalsAgainst ?? 0} />
+            <StatBlock
+              label="Goal difference"
+              value={(() => {
+                const gd = (stats.teamGoalsFor ?? 0) - (stats.teamGoalsAgainst ?? 0);
+                return gd > 0 ? `+${gd}` : `${gd}`;
+              })()}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line sm:grid-cols-3 lg:grid-cols-6">
             <StatBlock label="Current win streak" value={streaks.winningStreak} />
             <StatBlock label="Longest win streak" value={streaks.longestWinningStreak} />

@@ -13,6 +13,11 @@ export type PlayerStats = {
   winPercentage: number; // 0-100, rounded to 1 decimal
   lastMatchDate: string | null;
   lastResult: "win" | "loss" | "draw" | null;
+  // Team goals across matches the player actually played: their team's total score (for)
+  // and the opposing team's total score (against), summed over those matches. Optional
+  // because the batched dashboard/leaderboard paths don't populate them.
+  teamGoalsFor?: number;
+  teamGoalsAgainst?: number;
 };
 
 /**
@@ -25,6 +30,9 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
     .select({
       result: matchPlayers.result,
       matchDate: matches.matchDate,
+      team: matchPlayers.team,
+      teamAScore: matches.teamAScore,
+      teamBScore: matches.teamBScore,
     })
     .from(matchPlayers)
     .innerJoin(matches, eq(matchPlayers.matchId, matches.id))
@@ -35,6 +43,19 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
   const wins = rows.filter((r) => r.result === "win").length;
   const losses = rows.filter((r) => r.result === "loss").length;
   const draws = rows.filter((r) => r.result === "draw").length;
+
+  // Team goals for/against: the player's team score vs the opponent score, each match played.
+  let teamGoalsFor = 0;
+  let teamGoalsAgainst = 0;
+  for (const r of rows) {
+    if (r.team === "A") {
+      teamGoalsFor += r.teamAScore;
+      teamGoalsAgainst += r.teamBScore;
+    } else {
+      teamGoalsFor += r.teamBScore;
+      teamGoalsAgainst += r.teamAScore;
+    }
+  }
 
   const goalRows = await db
     .select()
@@ -56,6 +77,8 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
     winPercentage,
     lastMatchDate: last?.matchDate ?? null,
     lastResult: (last?.result as "win" | "loss" | "draw" | undefined) ?? null,
+    teamGoalsFor,
+    teamGoalsAgainst,
   };
 }
 
