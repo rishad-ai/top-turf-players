@@ -13,6 +13,10 @@ function parseId(v: string | undefined): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+function fmtDiff(n: number): string {
+  return n > 0 ? `+${n}` : `${n}`;
+}
+
 // One comparison row: A value on the left, label in the middle, B value on the right.
 // The stronger side is tinted green; ties are neutral.
 function CompareRow({
@@ -183,6 +187,24 @@ export default async function ComparePage({
             <CompareRow label="Draws" aValue={comparison.a.stats.draws} bValue={comparison.b.stats.draws} higherIsBetter={false} />
             <CompareRow label="Losses" aValue={comparison.a.stats.losses} bValue={comparison.b.stats.losses} higherIsBetter={false} />
             <CompareRow label="Goals" aValue={comparison.a.stats.goals} bValue={comparison.b.stats.goals} />
+            <CompareRow
+              label="Goals for (team)"
+              aValue={comparison.a.stats.teamGoalsFor ?? 0}
+              bValue={comparison.b.stats.teamGoalsFor ?? 0}
+            />
+            <CompareRow
+              label="Goals against (team)"
+              aValue={comparison.a.stats.teamGoalsAgainst ?? 0}
+              bValue={comparison.b.stats.teamGoalsAgainst ?? 0}
+              higherIsBetter={false}
+            />
+            <CompareRow
+              label="Goal difference"
+              aValue={(comparison.a.stats.teamGoalsFor ?? 0) - (comparison.a.stats.teamGoalsAgainst ?? 0)}
+              bValue={(comparison.b.stats.teamGoalsFor ?? 0) - (comparison.b.stats.teamGoalsAgainst ?? 0)}
+              aDisplay={fmtDiff((comparison.a.stats.teamGoalsFor ?? 0) - (comparison.a.stats.teamGoalsAgainst ?? 0))}
+              bDisplay={fmtDiff((comparison.b.stats.teamGoalsFor ?? 0) - (comparison.b.stats.teamGoalsAgainst ?? 0))}
+            />
             <CompareRow
               label="Win %"
               aValue={comparison.a.stats.winPercentage}
