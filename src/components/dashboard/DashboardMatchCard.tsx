@@ -125,6 +125,18 @@ function SubsRow({ subs }: { subs: LineupPlayer[] }) {
   );
 }
 
+/**
+ * Arrange a row of players left→right by selection order (the array is already in the
+ * order the admin chose them). The 1st chosen goes in the CENTRE, the 2nd on the RIGHT
+ * (viewer's right), the 3rd on the LEFT → left-to-right = [3rd, 1st, 2nd].
+ * Rows that aren't exactly 3 players are left as-is.
+ */
+function arrangeRow(row: LineupPlayer[]): LineupPlayer[] {
+  if (row.length !== 3) return row;
+  const [first, second, third] = row;
+  return [third, first, second];
+}
+
 function TeamHalf({
   teamName,
   score,
@@ -138,8 +150,8 @@ function TeamHalf({
   subs?: LineupPlayer[];
   mirror?: boolean;
 }) {
-  const att = players.filter((p) => p.position === "ATT");
-  const def = players.filter((p) => p.position === "DEF");
+  const att = arrangeRow(players.filter((p) => p.position === "ATT"));
+  const def = arrangeRow(players.filter((p) => p.position === "DEF"));
   const gk = players.filter((p) => p.position === "GK");
   const unassigned = players.filter((p) => p.position === null);
   const hasFormation = gk.length + def.length + att.length > 0;

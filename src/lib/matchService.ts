@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { matches, matchPlayers, goals, players } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 import {
   validateMatchInput,
   computeResult,
@@ -141,9 +141,12 @@ export async function getMatchDetail(matchId: number) {
   });
   if (!match) return null;
 
+  // Order by insertion id so the lineup keeps the admin's selection order
+  // (first chosen defender/attacker first), which the dashboard uses for placement.
   const matchPlayerRows = await db.query.matchPlayers.findMany({
     where: eq(matchPlayers.matchId, matchId),
     with: { player: true },
+    orderBy: asc(matchPlayers.id),
   });
 
   const goalRows = await db.query.goals.findMany({
