@@ -46,6 +46,13 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Shift an ISO date (YYYY-MM-DD) by a number of days. */
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /**
  * Single optimized pass for the whole dashboard. Fetches every table once
  * (players, matches, match_players, goals) and computes all per-player stats and
@@ -181,20 +188,28 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
     });
   }
 
+  // Recency cutoffs: a player who hasn't played recently shouldn't surface in the streak
+  // sections (their streak is stale). Hot & losing use 30 days; undefeated allows up to 40.
+  const cutoff30 = addDaysISO(today, -30);
+  const cutoff40 = addDaysISO(today, -40);
+  const playedWithin = (s: DashboardPlayerSummary, cutoff: string) =>
+    s.lastMatchDate !== null && s.lastMatchDate >= cutoff;
+
   const hotStreakPlayers = summaries
-    .filter((s) => s.matchesPlayed > 0 && s.winningStreak >= 3)
+    .filter((s) => s.matchesPlayed > 0 && s.winningStreak >= 3 && playedWithin(s, cutoff30))
     .sort((a, b) => b.winningStreak - a.winningStreak);
 
   // Undefeated streak (wins + draws, only a loss breaks it). Shown as its own section.
   // A pure winning run counts as undefeated too, so this can overlap with hot streaks.
   const undefeatedStreakPlayers = summaries
-    .filter((s) => s.matchesPlayed > 0 && s.undefeatedStreak >= 3)
+    .filter((s) => s.matchesPlayed > 0 && s.undefeatedStreak >= 3 && playedWithin(s, cutoff40))
     .sort((a, b) => b.undefeatedStreak - a.undefeatedStreak);
 
   // Injured players are hidden from the cold-streak list — they can't play, so their
-  // streak is frozen and shouldn't be surfaced as an active losing run.
+  // streak is frozen and shouldn't be surfaced as an active losing run. A player who
+  // hasn't played in 30+ days is hidden too.
   const coldStreakPlayers = summaries
-    .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3 && !s.injured)
+    .filter((s) => s.matchesPlayed > 0 && s.losingStreak >= 3 && !s.injured && playedWithin(s, cutoff30))
     .sort((a, b) => b.losingStreak - a.losingStreak);
 
   const scorers = summaries.filter((s) => s.goals > 0).sort((a, b) => b.goals - a.goals);

@@ -1,9 +1,11 @@
 import { getAllPlayers } from "@/lib/players";
 import { comparePlayers, type Comparison } from "@/lib/compare";
+import { POSITION_LABELS, emptyPositionStat, type Position } from "@/lib/stats";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { ResultBadge } from "@/components/players/ResultBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CompareSelectors } from "./CompareSelectors";
+import { ComparePositionTabs } from "./ComparePositionTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,10 @@ function parseId(v: string | undefined): number | null {
   if (!v) return null;
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function parsePos(v: string | undefined): "all" | Position {
+  return v === "GK" || v === "DEF" || v === "ATT" ? v : "all";
 }
 
 function fmtDiff(n: number): string {
@@ -133,11 +139,12 @@ function HeadToHeadCard({ c }: { c: Comparison }) {
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ a?: string; b?: string }>;
+  searchParams: Promise<{ a?: string; b?: string; pos?: string }>;
 }) {
-  const { a: aRaw, b: bRaw } = await searchParams;
+  const { a: aRaw, b: bRaw, pos: posRaw } = await searchParams;
   const aId = parseId(aRaw);
   const bId = parseId(bRaw);
+  const pos = parsePos(posRaw);
 
   const players = await getAllPlayers();
   const options = players.map((p) => ({ id: p.id, name: p.name }));
@@ -148,7 +155,9 @@ export default async function ComparePage({
     <div className="space-y-4">
       <h1 className="font-display text-2xl font-semibold text-ink">Compare players</h1>
 
-      <CompareSelectors players={options} a={aId} b={bId} />
+      <CompareSelectors players={options} a={aId} b={bId} pos={pos} />
+
+      {comparison && <ComparePositionTabs a={aId} b={bId} pos={pos} />}
 
       {!comparison ? (
         <EmptyState
@@ -171,6 +180,44 @@ export default async function ComparePage({
             />
           </div>
 
+          {pos !== "all" ? (
+            <>
+              <p className="text-center text-sm font-semibold text-ink-muted">
+                Record as {POSITION_LABELS[pos]} only
+              </p>
+              {(() => {
+                const pa = comparison.a.stats.byPosition?.[pos] ?? emptyPositionStat();
+                const pb = comparison.b.stats.byPosition?.[pos] ?? emptyPositionStat();
+                if (pa.played === 0 && pb.played === 0) {
+                  return (
+                    <EmptyState
+                      title={`No games as ${POSITION_LABELS[pos]}`}
+                      description={`Neither player has played in this position yet.`}
+                    />
+                  );
+                }
+                return (
+                  <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm ring-1 ring-line">
+                    <CompareRow label="Games here" aValue={pa.played} bValue={pb.played} />
+                    <CompareRow label="Wins" aValue={pa.wins} bValue={pb.wins} />
+                    <CompareRow label="Draws" aValue={pa.draws} bValue={pb.draws} higherIsBetter={false} />
+                    <CompareRow label="Losses" aValue={pa.losses} bValue={pb.losses} higherIsBetter={false} />
+                    <CompareRow label="Goals" aValue={pa.goals} bValue={pb.goals} />
+                    <CompareRow label="Goals for (team)" aValue={pa.teamGoalsFor} bValue={pb.teamGoalsFor} />
+                    <CompareRow label="Goals against (team)" aValue={pa.teamGoalsAgainst} bValue={pb.teamGoalsAgainst} higherIsBetter={false} />
+                    <CompareRow
+                      label="Win %"
+                      aValue={pa.winPercentage}
+                      bValue={pb.winPercentage}
+                      aDisplay={`${pa.winPercentage}%`}
+                      bDisplay={`${pb.winPercentage}%`}
+                    />
+                  </div>
+                );
+              })()}
+            </>
+          ) : (
+          <>
           <HeadToHeadCard c={comparison} />
 
           <div className="rounded-2xl bg-surface px-4 py-2 shadow-sm ring-1 ring-line">
@@ -219,6 +266,8 @@ export default async function ComparePage({
             <CompareRow label="Current losing streak" aValue={comparison.a.streaks.losingStreak} bValue={comparison.b.streaks.losingStreak} higherIsBetter={false} />
             <CompareRow label="Longest losing streak" aValue={comparison.a.streaks.longestLosingStreak} bValue={comparison.b.streaks.longestLosingStreak} higherIsBetter={false} />
           </div>
+          </>
+          )}
         </>
       )}
     </div>

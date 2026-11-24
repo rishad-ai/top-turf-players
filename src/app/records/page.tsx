@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { calculateRecords, type ScorerRow, type WinsRow, type StreakRow } from "@/lib/records";
+import { calculateRecords, type ScorerRow, type WinsRow, type LossesRow, type StreakRow } from "@/lib/records";
 import { PlayerAvatar } from "@/components/players/PlayerAvatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MatchRecordsSection } from "./MatchRecordsSection";
@@ -79,6 +79,20 @@ function WinsCard({ title, subtitle, rows }: { title: string; subtitle?: string;
   );
 }
 
+function LossesCard({ title, subtitle, rows }: { title: string; subtitle?: string; rows: LossesRow[] }) {
+  return (
+    <Card title={title} subtitle={subtitle}>
+      {rows.length === 0 ? (
+        <Empty />
+      ) : (
+        rows.map((r, i) => (
+          <PlayerRow key={r.playerId} i={i} playerId={r.playerId} name={r.name} photoUrl={r.photoUrl} value={`${r.losses}L`} />
+        ))
+      )}
+    </Card>
+  );
+}
+
 function StreakCard({ title, subtitle, rows }: { title: string; subtitle?: string; rows: StreakRow[] }) {
   return (
     <Card title={title} subtitle={subtitle}>
@@ -135,9 +149,10 @@ export default async function RecordsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display text-lg font-semibold text-ink">🏆 Most wins</h2>
+        <h2 className="font-display text-lg font-semibold text-ink">🏆 Most wins &amp; losses</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <WinsCard title="Last month" subtitle={r.lastMonthLabel} rows={r.winsLastMonth} />
+          <WinsCard title="Most wins" subtitle={r.lastMonthLabel} rows={r.winsLastMonth} />
+          <LossesCard title="Most losses" subtitle={r.lastMonthLabel} rows={r.lossesLastMonth} />
         </div>
       </section>
 

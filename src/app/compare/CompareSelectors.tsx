@@ -9,10 +9,12 @@ export function CompareSelectors({
   players,
   a,
   b,
+  pos = "all",
 }: {
   players: Option[];
   a: number | null;
   b: number | null;
+  pos?: string;
 }) {
   const router = useRouter();
 
@@ -20,6 +22,7 @@ export function CompareSelectors({
     const params = new URLSearchParams();
     if (nextA) params.set("a", String(nextA));
     if (nextB) params.set("b", String(nextB));
+    if (pos && pos !== "all") params.set("pos", pos);
     router.push(`/compare${params.toString() ? `?${params.toString()}` : ""}`);
   }
 

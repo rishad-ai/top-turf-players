@@ -109,6 +109,35 @@ export default async function PlayerProfilePage({
             />
           </div>
 
+          {/* Games played by position (GK / DEF / ATT). */}
+          {stats.byPosition && (
+            <div className="rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line">
+              <p className="mb-2 font-display text-base font-semibold text-ink">By position</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {(["GK", "DEF", "ATT"] as const).map((pos) => {
+                  const b = stats.byPosition![pos];
+                  const label = pos === "GK" ? "🧤 Goalkeeper" : pos === "DEF" ? "🛡️ Defence" : "⚡ Attack";
+                  return (
+                    <div key={pos} className="rounded-xl bg-bg p-3 ring-1 ring-line">
+                      <p className="text-xs font-semibold text-ink-muted">{label}</p>
+                      <p className="mt-1 font-display text-2xl font-bold text-ink">
+                        {b.played}
+                        <span className="ml-1 text-sm font-medium text-ink-muted">
+                          game{b.played === 1 ? "" : "s"}
+                        </span>
+                      </p>
+                      {b.played > 0 && (
+                        <p className="mt-0.5 text-xs text-ink-muted">
+                          {b.wins}W · {b.draws}D · {b.losses}L · {b.goals}⚽ · {b.winPercentage}%
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2 rounded-2xl bg-surface p-4 shadow-sm ring-1 ring-line sm:grid-cols-3 lg:grid-cols-6">
             <StatBlock label="Current win streak" value={streaks.winningStreak} />
             <StatBlock label="Longest win streak" value={streaks.longestWinningStreak} />

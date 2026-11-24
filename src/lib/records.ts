@@ -9,6 +9,7 @@ import {
 
 export type ScorerRow = { playerId: number; name: string; photoUrl: string | null; goals: number };
 export type WinsRow = { playerId: number; name: string; photoUrl: string | null; wins: number };
+export type LossesRow = { playerId: number; name: string; photoUrl: string | null; losses: number };
 export type StreakRow = {
   playerId: number;
   name: string;
@@ -40,6 +41,7 @@ export type Records = {
   scorersThisYear: ScorerRow[];
   scorersAllTime: ScorerRow[];
   winsLastMonth: WinsRow[];
+  lossesLastMonth: LossesRow[];
   losingStreakLastMonth: StreakRow[];
   losingStreakAllTime: StreakRow[];
   biggestResultsAllTime: ResultRow[];
@@ -147,6 +149,22 @@ export async function calculateRecords(): Promise<Records> {
     .sort((a, b) => b.wins - a.wins)
     .slice(0, 5);
 
+  // ---- Most losses last month ----
+  const lossCounts = new Map<number, number>();
+  for (const mp of allMatchPlayers) {
+    if (!mp.played || mp.result !== "loss") continue;
+    const d = matchDateById.get(mp.matchId);
+    if (!d || !d.startsWith(`${lastMonthPrefix}-`)) continue;
+    lossCounts.set(mp.playerId, (lossCounts.get(mp.playerId) ?? 0) + 1);
+  }
+  const lossesLastMonth: LossesRow[] = [...lossCounts.entries()]
+    .map(([playerId, losses]) => {
+      const info = nameById.get(playerId);
+      return { playerId, name: info?.name ?? `#${playerId}`, photoUrl: info?.photoUrl ?? null, losses };
+    })
+    .sort((a, b) => b.losses - a.losses)
+    .slice(0, 5);
+
   // ---- Losing streaks ----
   // Group each player's PLAYED results by date, ascending.
   const playedByPlayer = new Map<number, { matchDate: string; result: Result }[]>();
@@ -246,6 +264,7 @@ export async function calculateRecords(): Promise<Records> {
     scorersThisYear,
     scorersAllTime,
     winsLastMonth,
+    lossesLastMonth,
     losingStreakLastMonth: losingLastMonth.slice(0, 5),
     losingStreakAllTime: losingAllTime.slice(0, 5),
     biggestResultsAllTime,

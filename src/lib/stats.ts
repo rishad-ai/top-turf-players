@@ -3,6 +3,29 @@ import { players, matchPlayers, matches, goals, injuries } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { calculatePlayerStreaks, computeStreaksFromData, type StreakSummary, type Result } from "./streaks";
 
+export type Position = "GK" | "DEF" | "ATT";
+
+export type PositionStat = {
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  teamGoalsFor: number;
+  teamGoalsAgainst: number;
+  winPercentage: number;
+};
+
+export function emptyPositionStat(): PositionStat {
+  return { played: 0, wins: 0, draws: 0, losses: 0, goals: 0, teamGoalsFor: 0, teamGoalsAgainst: 0, winPercentage: 0 };
+}
+
+export const POSITION_LABELS: Record<Position, string> = {
+  GK: "Goalkeeper",
+  DEF: "Defence",
+  ATT: "Attack",
+};
+
 export type PlayerStats = {
   playerId: number;
   matchesPlayed: number;
@@ -18,6 +41,9 @@ export type PlayerStats = {
   // because the batched dashboard/leaderboard paths don't populate them.
   teamGoalsFor?: number;
   teamGoalsAgainst?: number;
+  // Per-position breakdown (games/results/goals played as GK, DEF, ATT). Optional for the
+  // batched paths that don't compute it.
+  byPosition?: Record<Position, PositionStat>;
 };
 
 /**
@@ -28,9 +54,11 @@ export type PlayerStats = {
 export async function calculatePlayerStats(playerId: number): Promise<PlayerStats> {
   const rows = await db
     .select({
+      matchId: matchPlayers.matchId,
       result: matchPlayers.result,
       matchDate: matches.matchDate,
       team: matchPlayers.team,
+      position: matchPlayers.position,
       teamAScore: matches.teamAScore,
       teamBScore: matches.teamBScore,
     })
@@ -47,14 +75,27 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
   // Team goals for/against: the player's team score vs the opponent score, each match played.
   let teamGoalsFor = 0;
   let teamGoalsAgainst = 0;
+  const byPosition: Record<Position, PositionStat> = {
+    GK: emptyPositionStat(),
+    DEF: emptyPositionStat(),
+    ATT: emptyPositionStat(),
+  };
+  const positionByMatch = new Map<number, Position>();
   for (const r of rows) {
-    if (r.team === "A") {
-      teamGoalsFor += r.teamAScore;
-      teamGoalsAgainst += r.teamBScore;
-    } else {
-      teamGoalsFor += r.teamBScore;
-      teamGoalsAgainst += r.teamAScore;
-    }
+    const gf = r.team === "A" ? r.teamAScore : r.teamBScore;
+    const ga = r.team === "A" ? r.teamBScore : r.teamAScore;
+    teamGoalsFor += gf;
+    teamGoalsAgainst += ga;
+
+    const pos = (r.position as Position) ?? "ATT";
+    positionByMatch.set(r.matchId, pos);
+    const b = byPosition[pos];
+    b.played++;
+    if (r.result === "win") b.wins++;
+    else if (r.result === "loss") b.losses++;
+    else if (r.result === "draw") b.draws++;
+    b.teamGoalsFor += gf;
+    b.teamGoalsAgainst += ga;
   }
 
   const goalRows = await db
@@ -62,7 +103,17 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
     .from(goals)
     .where(eq(goals.playerId, playerId));
   // Own goals don't count toward a player's personal tally (standard football).
-  const goalCount = goalRows.filter((g) => !g.isOwnGoal).length;
+  const scoringGoals = goalRows.filter((g) => !g.isOwnGoal);
+  const goalCount = scoringGoals.length;
+  // Attribute each goal to the position the player held in that match.
+  for (const g of scoringGoals) {
+    const pos = positionByMatch.get(g.matchId);
+    if (pos) byPosition[pos].goals++;
+  }
+  for (const pos of ["GK", "DEF", "ATT"] as Position[]) {
+    const b = byPosition[pos];
+    b.winPercentage = b.played === 0 ? 0 : Math.round((b.wins / b.played) * 1000) / 10;
+  }
 
   const winPercentage = matchesPlayed === 0 ? 0 : Math.round((wins / matchesPlayed) * 1000) / 10;
 
@@ -79,7 +130,17 @@ export async function calculatePlayerStats(playerId: number): Promise<PlayerStat
     lastResult: (last?.result as "win" | "loss" | "draw" | undefined) ?? null,
     teamGoalsFor,
     teamGoalsAgainst,
+    byPosition,
   };
+}
+
+/**
+ * Counting stats for a player restricted to matches they played in a given position.
+ * Used by the comparison's position filter. Streaks are not position-scoped.
+ */
+export async function calculatePlayerPositionStats(playerId: number, position: Position): Promise<PositionStat> {
+  const full = await calculatePlayerStats(playerId);
+  return full.byPosition?.[position] ?? emptyPositionStat();
 }
 
 export type PlayerMatchHistoryEntry = {
